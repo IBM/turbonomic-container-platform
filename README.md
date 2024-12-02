@@ -1,41 +1,24 @@
-<!-- This should be the location of the title of the repository, normally the short name -->
 # Turbonomic Container Platform
 
 A helm repo and store of yaml files required for customer initiated deployment of Turbonomic agents kubeturbo prometurbo in customer owned container platform clusters
 
 ## Usage
 
-For the helm repo instructions visit https://ibm.github.io/turbonomic-container-platform/
+[Helm](https://helm.sh) must be installed to use the charts.  Please refer to
+Helm's [documentation](https://helm.sh/docs) to get started.
 
-```bash
-helm repo add turbo-charts https://ibm.github.io/turbonomic-container-platform/
-```
+Once Helm has been set up correctly, add the repo as follows:
 
-For deployment via operator or yamls use the folder [deploy](./deploy/)
+    helm repo add turbo-charts https://tian-ma.github.io/turbonomic-helm-charts/
 
-<!-- A notes section is useful for anything that isn't covered in the Usage or Scope. Like what we have below. -->
-## Notes
+If you had already added this repo earlier, run `helm repo update` to retrieve
+the latest versions of the packages.  
+You can then run `helm search repo turbo-charts` to see the charts.
 
-<!-- Questions can be useful but optional, this gives you a place to say, "This is how to contact this project maintainers or create PRs -->
-If you have any questions or issues you can create a new [issue here][issues].
+To install the kubeturbo chart:
 
-Pull requests are very welcome! Make sure your patches are well tested.
-Ideally create a topic branch for every separate change you make. For
-example:
+    helm install my-kubeturbo turbo-charts/kubeturbo
 
-1. Fork the repo
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Added some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create new Pull Request
+To uninstall the chart:
 
-## License
-
-```text
-#
-# Copyright IBM Corp. 2024
-# SPDX-License-Identifier: Apache-2.0
-#
-```
-
-## Authors
+    helm delete my-kubeturbo
