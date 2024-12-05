@@ -1,0 +1,10 @@
+# Getting Started with the Turbonomic Secure Connect Operator
+
+## Installing the Turbonomic Secure Connect Operator without Operator Lifecycle Manager (OLM)
+```
+export namespace=turbonomic
+kubectl create ns $namespace
+kubectl apply -f https://raw.githubusercontent.com/turbonomic/kubeturbo-deploy/staging/deploy/tsc_operator_yamls/operator-bundle.yaml
+```
+
+Note: the TSC operator yaml bundle [operator-yaml](https://raw.githubusercontent.com/turbonomic/kubeturbo-deploy/staging/deploy/tsc_operator_yamls/operator-bundle.yaml) is port from https://github.ibm.com/turbonomic/hybrid-saas-client-operator/blob/staging/deploy/operator_bundle.yaml
