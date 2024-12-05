@@ -31,7 +31,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "<Turbo_version>",
+                "version": "8.14.5",
                 "turboServer": "https://<Turbo_server_URL>"
             },
             "restAPIConfig": {
