@@ -3,9 +3,9 @@ entries:
   kubeturbo:
   - apiVersion: v1
     appVersion: "8.0"
-    created: "2024-12-03T11:06:43.6759-05:00"
+    created: "2024-12-05T11:36:30.465434-05:00"
     description: A Helm chart for Kubernetes
-    digest: b812078cc7a8c61a3846699751b4a0a9729046740bdb28da92f65eb88a6a936f
+    digest: 8f3aa19eb76a18addc70205e3ddbd2a177aa9c72bf2c894e9300f09b5fe6483d
     name: kubeturbo
     urls:
     - https://github.com/IBM/turbonomic-container-platform/releases/download/kubeturbo-8.14.5/kubeturbo-8.14.5.tgz
@@ -42,4 +42,4 @@ entries:
     urls:
     - https://github.com/IBM/turbonomic-container-platform/releases/download/prometurbo-1.0.0/prometurbo-1.0.0.tgz
     version: 1.0.0
-generated: "2024-12-05T11:22:37.740871-05:00"
+generated: "2024-12-05T11:36:30.464972-05:00"
