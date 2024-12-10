@@ -182,9 +182,9 @@ spec:
   # or optionally specify username and password below
   # The opsManagerUserName requires Turbo administrator or site administrator role
   restAPIConfig:
-  #  turbonomicCredentialsSecretName: "turbonomic-credentials"
-    opsManagerUserName: Turbo_username
-    opsManagerPassword: Turbo_password
+    turbonomicCredentialsSecretName: "turbonomic-credentials"
+    # opsManagerUserName: Turbo_username
+    # opsManagerPassword: Turbo_password
 
   # Configurations to register probe with Turbo Server
   #sdkProtocolConfig:
@@ -198,7 +198,7 @@ spec:
 
   # Supply a targetName for user friendly identification of the k8s cluster
   targetConfig:
-    targetName: Your_Cluster_name
+    targetName: Your_Cluster_Name
 
   # Uncomment next lines to use dynamic logging level
   # Changing this value does not require restart of Kubeturbo but takes about 1 minute to take effect

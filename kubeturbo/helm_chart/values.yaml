@@ -48,8 +48,8 @@ serverMeta:
 # The opsManagerUserName requires Turbo administrator role
 restAPIConfig:
   turbonomicCredentialsSecretName: "turbonomic-credentials"
-  opsManagerUserName: Turbo_username
-  opsManagerPassword: Turbo_password
+  # opsManagerUserName: Turbo_username
+  # opsManagerPassword: Turbo_password
 
 # Turbo server registration process configuration
 sdkProtocolConfig:

@@ -1,0 +1,43 @@
+apiVersion: charts.helm.k8s.io/v1
+kind: Kubeturbo
+metadata:
+  name: kubeturbo-release
+  namespace: turbo
+spec:
+  image:
+     tag: 8.14.4
+  serverMeta:
+    turboServer: "https://<Turbo_server_URL>"
+  restAPIConfig:
+    turbonomicCredentialsSecretName: turbonomic-credentials
+  targetConfig:
+    targetName: <Your_Cluster_Name>
+
+  # Assigning Kubeturbo to node, see 
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 
+  #
+  # kubeturboPodScheduling:
+  #  nodeSelector:
+  #    kubernetes.io/hostname: worker0
+  #
+  # Or, use affinity:
+  #
+  #   affinity:
+  #     nodeAffinity:
+  #         requiredDuringSchedulingIgnoredDuringExecution:
+  #           nodeSelectorTerms:
+  #           - matchExpressions:
+  #             - key: kubernetes.io/hostname
+  #               operator: In
+  #               values:
+  #               - worker1
+  #
+  # Or, use taints and tolerations
+  #
+  # tolerations:
+  # - key: "key1"
+  #   operator: "Equal"
+  #   value: "mytaint"
+  #   effect: "NoSchedule"
+
+  # TODO(user): Add fields here
