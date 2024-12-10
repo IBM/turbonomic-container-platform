@@ -23,8 +23,8 @@ roleName: "prometurbo"
 # Specify the name of clusterrolebinding
 roleBinding: "prometurbo-binding"
 
-#nameOverride: ""
-#fullnameOverride: ""
+# nameOverride: ""
+# fullnameOverride: ""
 
 # Turbonomic server version and address
 serverMeta:
@@ -98,9 +98,9 @@ exporters:
 #   attributes: map[string] ValueMapping  # `yaml:"attributes"`
 # metrics:
 #   type: string                          # resource for which the query to the metric server is made
-#	queries: map[string]string            # map of query strings to the resource attribute type such as 'used', 'capacity'
+#   queries: map[string]string            # map of query strings to the resource attribute type such as 'used', 'capacity'
 # ValueMapping:
 #   label: string                         # `yaml:"label"`
-#	matches: string                       # `yaml:"matches,omitempty"`
-#	as: string                            # `yaml:"as,omitempty"`
-#	isIdentifier: bool                    # `yaml:"isIdentifier"`
+#   matches: string                       # `yaml:"matches,omitempty"`
+#   as: string                            # `yaml:"as,omitempty"`
+#   isIdentifier: bool                    # `yaml:"isIdentifier"`
