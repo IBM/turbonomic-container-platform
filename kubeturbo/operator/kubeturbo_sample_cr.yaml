@@ -1,17 +1,32 @@
 apiVersion: charts.helm.k8s.io/v1
 kind: Kubeturbo
 metadata:
+  labels:
+    app.kubernetes.io/name: kubeturbo
+    app.kubernetes.io/instance: kubeturbo-release
+    app.kubernetes.io/part-of: kubeturbo-deploy
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kubeturbo-deploy
   name: kubeturbo-release
-  namespace: turbo
 spec:
-  image:
-     tag: 8.14.4
   serverMeta:
     turboServer: "https://<Turbo_server_URL>"
+  
   restAPIConfig:
     turbonomicCredentialsSecretName: turbonomic-credentials
+
+  # Supply a targetName for user friendly identification of the k8s cluster
   targetConfig:
-    targetName: <Your_Cluster_Name>
+    targetName: Your_Cluster_name
+  
+  # Specify custom turbo-cluster-reader or turbo-cluster-admin role instead of the default cluster-admin role
+  roleName: cluster-admin
+
+  image:
+    repository: icr.io/cpopen/turbonomic/kubeturbo
+    tag: "8.14.4"
+    # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
+    # busyboxRepository: registry.access.redhat.com/ubi9/ubi-minimal
 
   # Assigning Kubeturbo to node, see 
   # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 
@@ -40,4 +55,64 @@ spec:
   #   value: "mytaint"
   #   effect: "NoSchedule"
 
-  # TODO(user): Add fields here
+  # Configurations to register probe with Turbo Server
+  # sdkProtocolConfig:
+  #   registrationTimeoutSec: 300
+  #   restartOnRegistrationTimeout: true
+
+  # Uncomment out lines to configure HA Node to ESX policies by node role. Default is master
+  # Add more roles using format "\"foo\"\,\"bar\""
+  # HANodeConfig:
+  #   nodeRoles: "\"master\""
+
+  # Uncomment next lines to use dynamic logging level
+  # Changing this value does not require restart of Kubeturbo but takes about 1 minute to take effect
+  # logging:
+  #   level: 2
+  # nodePoolSize:
+  #   min: 1
+  #   max: 1000
+
+  # Uncomment out to allow execution in OCP environments
+  #args:
+  #  sccsupport: "*"
+
+  # Uncomment out to specify kubeturbo container specifications when needed (quotas set on ns)
+  #resources:
+  #  limits:
+  #    memory: 4Gi
+  #    cpu: "2"
+  #  requests:
+  #    memory: 512Mi
+  #    cpu: "1"
+
+  # Cluster Role rules for ORM owners.
+  # It's required when using ORM with ClusterRole 'turbo-cluster-admin'.
+  # It's recommended to use ORM with ClusterRole 'cluster-admin'.
+  ormOwners: 
+    apiGroup:
+      # - redis.redis.opstreelabs.in
+      # - charts.helm.k8s.io
+    resources:
+      # - redis
+      # - xls
+  # Flag system workloads such as those defined in kube-system, openshift-system, etc.
+  # Kubeturbo will not generate actions for workloads that match the supplied patterns.
+  systemWorkloadDetectors:
+    # A list of regular expressions that match the namespace names for system workloads.
+    namespacePatterns: 
+    - kube-.*
+    - openshift-.*
+    - cattle.*
+  # List operator-controlled workloads by name or namespace (using regular expressions)
+  # that should be excluded from the operator-controlled WorkloadController resize policy. 
+  # By default, matching workloads will generate actions that are not in Recommend mode.
+  # exclusionDetectors:
+    # A list of regular expressions representing operator-controlled Workload Controllers.
+    # operatorControlledNamespacePatterns: 
+    # - example-.*
+    # - .*-example
+    # A list of regular expressions representing namespaces containing operator-controlled 
+    # Workload Controllers. 
+    # operatorControlledWorkloadsPatterns:
+    # - .*-example.*
