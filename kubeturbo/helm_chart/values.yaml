@@ -41,15 +41,15 @@ serviceAccountName: "turbo-user"
 
 # Turbo server address
 serverMeta:
-  turboServer: https://Turbo_server_URL
+  turboServer: https://<Turbo_server_URL>
 #  proxy: http://username:password@proxyserver:proxyport or http://proxyserver:proxyport
 
 # Turbo server api user and password stored in a secret or optionally specified as username and password
 # The opsManagerUserName requires Turbo administrator role
 restAPIConfig:
   turbonomicCredentialsSecretName: "turbonomic-credentials"
-  opsManagerUserName: Turbo_username
-  opsManagerPassword: Turbo_password
+  # opsManagerUserName: Turbo_username
+  # opsManagerPassword: Turbo_password
 
 # Turbo server registration process configuration
 sdkProtocolConfig:
@@ -65,7 +65,7 @@ sdkProtocolConfig:
 #   The probe will appear as a Cloud Native probe in the UI with a type Kubernetes-<targetType>.
 #
 targetConfig:
-  targetName: Cluster_Name
+  targetName: <Your_Cluster_Name>
 #  targetType: Target_Type
 
 # In kubeturbo 6.4.3+, you can define what nodes should stay high-available based on the node role

@@ -1234,14 +1234,14 @@ spec:
                 type: object
               serverMeta:
                 default:
-                  turboServer: https://Turbo_server_URL
+                  turboServer: https://<Turbo_server_URL>
                 description: Configuration for Turbo Server
                 properties:
                   proxy:
                     description: Proxy server address
                     type: string
                   turboServer:
-                    default: https://Turbo_server_URL
+                    default: https://<Turbo_server_URL>
                     description: URL for Turbo Server endpoint
                     type: string
                   version:
@@ -2517,7 +2517,7 @@ spec:
                 type: object
               serverMeta:
                 default:
-                  turboServer: https://Turbo_server_URL
+                  turboServer: https://<Turbo_server_URL>
                 description: Configuration for Turbo Server
                 properties:
                   proxy:
@@ -2800,7 +2800,7 @@ spec:
 
   # Supply a targetName for user friendly identification of the k8s cluster
   targetConfig:
-    targetName: Your_Cluster_name
+    targetName: <Your_Cluster_Name>
   
   # Specify custom turbo-cluster-reader or turbo-cluster-admin role instead of the default cluster-admin role
   roleName: turbo-cluster-reader
@@ -2808,6 +2808,7 @@ spec:
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
     tag: "8.14.4"
+    # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # busyboxRepository: registry.access.redhat.com/ubi9/ubi-minimal
 
@@ -2899,3 +2900,15 @@ spec:
     # Workload Controllers. 
     # operatorControlledWorkloadsPatterns:
     # - .*-example.*
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: turbonomic-credentials
+  namespace: turbo
+type: Opaque
+data:
+  # username: #####<replace with base64 encoded value>
+  # password: #####<replace with base64 encoded value>
+  clientid: #####<replace with base64 encoded value>
+  clientsecret: #####<replace with base64 encoded value>

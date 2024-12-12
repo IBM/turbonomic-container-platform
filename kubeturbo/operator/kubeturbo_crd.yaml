@@ -1221,14 +1221,14 @@ spec:
                 type: object
               serverMeta:
                 default:
-                  turboServer: https://Turbo_server_URL
+                  turboServer: https://<Turbo_server_URL>
                 description: Configuration for Turbo Server
                 properties:
                   proxy:
                     description: Proxy server address
                     type: string
                   turboServer:
-                    default: https://Turbo_server_URL
+                    default: https://<Turbo_server_URL>
                     description: URL for Turbo Server endpoint
                     type: string
                   version:
@@ -2504,7 +2504,7 @@ spec:
                 type: object
               serverMeta:
                 default:
-                  turboServer: https://Turbo_server_URL
+                  turboServer: https://<Turbo_server_URL>
                 description: Configuration for Turbo Server
                 properties:
                   proxy:
