@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: namespace
     app.kubernetes.io/part-of: kubeturbo-deploy
     name: kubeturbo-operator
-  name: turbonomic
+  name: turbo
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -2607,7 +2607,7 @@ metadata:
     app.kubernetes.io/name: serviceaccount
     app.kubernetes.io/part-of: kubeturbo-deploy
   name: kubeturbo-operator
-  namespace: turbonomic
+  namespace: turbo
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -2709,7 +2709,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kubeturbo-operator
-  namespace: turbonomic
+  namespace: turbo
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2723,7 +2723,7 @@ metadata:
     app.kubernetes.io/part-of: kubeturbo-deploy
     name: kubeturbo-operator
   name: kubeturbo-operator
-  namespace: turbonomic
+  namespace: turbo
 spec:
   replicas: 1
   selector:
