@@ -1,0 +1,13 @@
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusServerConfig
+metadata:
+  name: prometheusserverconfig-singlecluster
+spec:
+  address: http://prometheus.istio-system:9090
+  clusters:
+    - queryMappingSelector:
+        matchExpressions:
+          - key: mapping
+            operator: NotIn
+            values:
+              - jmx-tomcat

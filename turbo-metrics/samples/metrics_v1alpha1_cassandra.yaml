@@ -1,0 +1,23 @@
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusQueryMapping
+metadata:
+  name: cassandra
+  labels:
+    mapping: cassandra
+spec:
+  entities:
+    - type: application
+      metrics:
+        - type: responseTime
+          queries:
+            - type: used
+              promql: '0.001*max(cassandra_stats{name=~"org:apache:cassandra:metrics:table:(write|read)latency:99thpercentile"}) by (instance)'
+        - type: transaction
+          queries:
+            - type: used
+              promql: 'sum(cassandra_stats{name=~"org:apache:cassandra:metrics:table:(write|read)latency:oneminuterate"}) by (instance)'
+      attributes:
+        - name: ip
+          label: instance
+          matches: \d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})??
+          isIdentifier: true

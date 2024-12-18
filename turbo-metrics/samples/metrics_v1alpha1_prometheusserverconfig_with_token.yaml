@@ -1,0 +1,23 @@
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusServerConfig
+metadata:
+  name: prometheusserverconfig-thanos
+  # create in the same namespace as the PrometheusQueryMapping
+spec:
+  address: https://thanos-querier-openshift-monitoring.apps.cluster-address
+  bearerToken:
+    secretKeyRef:
+      name: ocp-thanos-authorization-token
+      key: authorizationToken
+  clusters:
+  - identifier:
+      # get the cluster id using
+      # kubectl -n default get svc kubernetes -ojsonpath='{.metadata.uid}'
+      clusterLabels: {}
+      id: "---> add the cluster id here <---"
+    queryMappingSelector:
+      matchExpressions:
+      - key: mapping
+        operator: In
+        values:
+        - nvidia-dcgm-exporter

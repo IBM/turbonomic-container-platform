@@ -1,0 +1,34 @@
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusQueryMapping
+metadata:
+  name: jmx-tomcat
+  labels:
+    mapping: jmx-tomcat
+spec:
+  entities:
+    - type: application
+      hostedOnVM: true
+      metrics:
+        - type: cpu
+          queries:
+            - type: used
+              promql: 'java_lang_OperatingSystem_ProcessCpuLoad'
+        - type: memory
+          queries:
+            - type: used
+              promql: 'java_lang_Memory_HeapMemoryUsage_used/1024'
+            - type: capacity
+              promql: 'java_lang_Memory_HeapMemoryUsage_max/1024'
+        - type: collectionTime
+          queries:
+            - type: used
+              promql: 'sum without (name) (delta(java_lang_GarbageCollector_CollectionTime)[10m])/600*100'
+        - type: responseTime
+          queries:
+            - type: used
+              promql: 'rate(Catalina_GlobalRequestProcessor_processingTime{name=~".*http-.*"}[3m])'
+      attributes:
+        - name: ip
+          label: instance
+          matches: \d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})??
+          isIdentifier: true

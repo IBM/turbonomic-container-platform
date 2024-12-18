@@ -1,0 +1,121 @@
+# Monitors Text Generation Inference Servers (TGIS).
+# Depending on your configuration, you might have to modify labels if you have customized them
+# from the defaults.
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusQueryMapping
+metadata:
+  name: text-generation-inference
+  labels:
+    mapping: text-generation-inference
+spec:
+  entities:
+  - type: application
+    attributes:
+    - label: container
+      name: container
+    - isIdentifier: true
+      label: instance
+      matches: \d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})??
+      name: ip
+    - label: namespace
+      name: namespace
+    - label: pod
+      name: pod
+    # If service is not available please use the below for service.
+    # This tries to guess the service by looking at the pod name.
+    # If your pod does not follow this convention, then this method
+    # will not work.
+    #- label: pod
+    #  name: service
+    #  matches: (.*)-[a-f0-9]{7,10}-[a-z0-9]{5}
+    - label: service
+      name: service
+    # If service is not available please use the below for service.
+    # This tries to guess the service by looking at the pod name.
+    # If your pod does not follow this convention, then this method
+    # will not work.
+    #- label: pod
+    #  name: service_name
+    #  matches: (.*)-[a-f0-9]{7,10}-[a-z0-9]{5}
+    - label: service
+      name: service_name
+    - label: namespace
+      name: service_ns
+    metrics:
+    - type: transaction
+      queries:
+      - type: used
+        # The following query exhibits two patterns:
+        #   1) the "A >= B OR B OR C == 0" pattern that computes the max between A and B and, if neither is available,
+        #      we will take C if C is 0.
+        #   2) the "X OR Y + Z" pattern to compute the metric.  This is because X (tgi_request_total_tokens_sum) is only
+        #      available in the IBM variant of the TGI implementation, and not in the original HuggingFace one in which
+        #      only Y (tgi_request_input_length_sum) and Z (tgi_request_generated_tokens_sum) exist.  Their sum is X.
+        # We will now describe the "A >= B OR B OR C == 0" pattern in details.
+        # - "A" and "B" are the two moving averages of the total number of tokens.  In LLM servings, it's generally
+        #   regarded the total token count is a better measurement of the throughput than the total request count,
+        #   because token count per request varies a lot: imagine chat response which could be thousands of tokens vs.
+        #   classification which could just be a few tokens.  Taking the max of the two will help achieve fast scaling
+        #   up and slow/conservative scaling down.
+        # - "C" is the number of requests.  The "C" portion of the expression ensures proper handling of the
+        #   zero-transaction scenario in which case we'd want this query to return 0.  However, the "token count" metric
+        #   will not be 0; instead, it will be unavailable as there are no requests to count the tokens.  To address
+        #   this, we append the expression with "OR C == 0" portion, which will return 0 because the request count is 0.
+        #   Note: it is theoretically impossible that the request count is non-zero and the token count is unavailable.
+        # Now about the extension.
+        promql: rate(tgi_request_total_tokens_sum{}[10m]) > rate(tgi_request_total_tokens_sum{}[1h])
+          OR rate(tgi_request_total_tokens_sum{}[1h])
+          OR rate(tgi_request_input_length_sum{}[10m]) + rate(tgi_request_generated_tokens_sum{}[10m]) > rate(tgi_request_input_length_sum{}[1h]) + rate(tgi_request_generated_tokens_sum{}[1h])
+          OR rate(tgi_request_input_length_sum{}[1h]) + rate(tgi_request_generated_tokens_sum{}[1h])
+          OR rate(tgi_request_count{}[1h]) == 0
+        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
+        # promql: rate(tgi_request_total_tokens_sum{}[10m]) OR rate(tgi_request_input_length_sum{}[10m]) + rate(tgi_request_generated_tokens_sum{}[10m]) OR rate(tgi_request_count{}[10m]) == 0
+    - type: queuingTime
+      queries:
+      - type: used
+        # A similar "A >= B OR B OR C == 0" as above to retrieve the queuing time, with a 0 value under the scenario of
+        # zero-transaction.  Also, converting the value to milliseconds.
+        promql: (rate(tgi_request_queue_duration_sum{}[10m]) / (rate(tgi_request_queue_duration_count{}[10m]) > 0) > rate(tgi_request_queue_duration_sum{}[1h]) / rate(tgi_request_queue_duration_count{}[1h])
+          OR rate(tgi_request_queue_duration_sum{}[1h]) / (rate(tgi_request_queue_duration_count{}[1h]) > 0) OR rate(tgi_request_count{}[1h]) == 0) * 1000
+        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
+        # promql: (rate(tgi_request_queue_duration_sum{}[10m]) / (rate(tgi_request_queue_duration_count{}[10m]) > 0) OR rate(tgi_request_count{}[1h]) == 0) * 1000
+    - type: responseTime
+      queries:
+      - type: used
+        # Similarly taking the max of two (fast/slow) moving averages of the response time; converting to milliseconds.
+        # This query will return nothing (missing data) under the zero-transaction scenario, which we think is the
+        # correct behavior because without any requests recorded we can't really measure the response time which is
+        # certainly not zero.
+        promql: (rate(tgi_request_duration_sum{}[10m]) / (rate(tgi_request_duration_count{}[10m]) > 0) > rate(tgi_request_duration_sum{}[1h]) / (rate(tgi_request_duration_count{}[1h]) > 0)
+          OR rate(tgi_request_duration_sum{}[1h]) / (rate(tgi_request_duration_count{}[1h]) > 0)) * 1000
+        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
+        # promql: (rate(tgi_request_duration_sum{}[10m]) / (rate(tgi_request_duration_count{}[10m]) > 0)) * 1000
+    - type: serviceTime
+      queries:
+      - type: used
+        # This is just a "A >= B OR B" pattern for "serviceTime" which measures the TPOT (time-per-output-token).
+        # This query will return nothing (missing data) under the zero-transaction scenario, which we think is the
+        # correct behavior because without any requests recorded we can't really measure the service time which is
+        # certainly not zero.
+        # A note on the "method" filter below.  There are two types when coming to measuring inference duration:
+        # - One is "prefill" which measures the time to first (output) token (TTFT).  This value varies according to the
+        #   input token length.
+        # - The other is called "decode" or "next_token", which measures the TPOT that is relatively stable per model.
+        #   That means we can set a meaningful SLO for this metric per model and use it to drive the scaling.
+        # We use a negative filter below {method != "prefill"}, instead of {method = "next_token"}, to make the query
+        # work for both variants of TGI.  The HuggingFace variant uses the term "decode", while the IBM variant uses
+        # "next_token".  We could also use regex pattern: {{method =~ "next_token|decode"}}.
+        promql: (rate(tgi_batch_inference_duration_sum{method != "prefill"}[10m]) / (rate(tgi_batch_inference_duration_count{method != "prefill"}[10m]) > 0)
+          > rate(tgi_batch_inference_duration_sum{method != "prefill"}[1h]) / (rate(tgi_batch_inference_duration_count{method != "prefill"}[1h]) > 0)
+          OR rate(tgi_batch_inference_duration_sum{method != "prefill"}[1h]) / (rate(tgi_batch_inference_duration_count{method != "prefill"}[1h]) > 0)) * 1000
+        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
+        # promql: (rate(tgi_batch_inference_duration_sum{method != "prefill"}[10m]) / (rate(tgi_batch_inference_duration_count{method != "prefill"}[10m]) > 0)) * 1000
+    - type: concurrentQueries
+      queries:
+      - type: used
+        # A similar "A >= B OR B OR C == 0" as above to retrieve the current batch size, with a 0 value under the
+        # scenario of zero-transaction.
+        promql: avg_over_time(tgi_batch_current_size{}[10m]) > avg_over_time(tgi_batch_current_size{}[1h])
+          OR avg_over_time(tgi_batch_current_size{}[1h]) OR rate(tgi_request_input_count{}[1h]) == 0
+        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
+        # promql: avg_over_time(tgi_batch_current_size{}[10m]) OR rate(tgi_request_input_count{}[1h]) == 0

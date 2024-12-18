@@ -1,0 +1,28 @@
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusQueryMapping
+metadata:
+  name: kepler
+  labels:
+    mapping: kepler
+spec:
+  entities:
+    - attributes:
+        - isIdentifier: true
+          label: container_id
+          name: containerId
+        - label: container_name
+          name: container
+        - label: pod_name
+          name: pod
+        - label: container_namespace
+          name: namespace
+        - label: node_name
+          name: node
+      metrics:
+        - queries:
+            - promql: 'rate(kepler_container_joules_total[10m])/6'
+              type: used
+            - promql: '(delta(kepler_container_joules_total[24h])/3600)'
+              type: capacity
+          type: energy
+      type: kepler

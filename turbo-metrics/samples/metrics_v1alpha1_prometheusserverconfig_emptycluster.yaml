@@ -1,0 +1,6 @@
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusServerConfig
+metadata:
+  name: prometheusserverconfig-emptycluster
+spec:
+  address: http://prometheus.istio-system:9090

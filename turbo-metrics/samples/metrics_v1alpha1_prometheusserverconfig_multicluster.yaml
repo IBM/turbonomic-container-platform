@@ -1,0 +1,21 @@
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusServerConfig
+metadata:
+  name: prometheusserverconfig-multicluster
+spec:
+  address: https://observatorium-api-open-cluster-management-observability.apps.cluster-nbx49.com:9090
+  clusters:
+    - identifier:
+        id: "ed531637-064a-473c-a9a8-7970bf27f534"
+        clusterLabels:
+          cluster: clusterA
+      queryMappingSelector:
+        matchExpressions:
+          - key: mapping
+            operator: NotIn
+            values:
+              - istio
+    - identifier:
+        id: "cda4d884-a053-4aba-8576-afa5d923e7c6"
+        clusterLabels:
+          cluster: clusterB
