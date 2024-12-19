@@ -153,8 +153,7 @@ data:
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
-                "opsManagerUserName": "<Turbo_username>",
-                "opsManagerPassword": "<Turbo_password>"
+                "turbonomicCredentialsSecretName": "turbonomic-credentials"
             }
         },
         "targetConfig": {
@@ -299,8 +298,8 @@ metadata:
   namespace: turbo
 type: Opaque
 data:
-  # username: BASE64encodedValue
-  # password: BASE64encodedValue
-  clientid: BASE64encodedValue
-  clientsecret: BASE64encodedValue
+  # username: <Username_encoded_base64>
+  # password: <Password_encoded_base64>
+  clientid: <Client_id_encoded_base64>
+  clientsecret: <Client_secret_encoded_base64>
 ---

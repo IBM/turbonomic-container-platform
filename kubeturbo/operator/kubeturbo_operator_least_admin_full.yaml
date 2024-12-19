@@ -324,7 +324,7 @@ metadata:
   namespace: turbo
 type: Opaque
 data:
-  # username: #####<replace with base64 encoded value>
-  # password: #####<replace with base64 encoded value>
-  clientid: #####<replace with base64 encoded value>
-  clientsecret: #####<replace with base64 encoded value>
+  # username: <Username_encoded_base64>
+  # password: <Password_encoded_base64>
+  clientid: <Client_id_encoded_base64>
+  clientsecret: <Client_secret_encoded_base64>
