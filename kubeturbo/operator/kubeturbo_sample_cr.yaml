@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: kubeturbo-deploy
   name: kubeturbo-release
+  namespace: turbo
 spec:
   serverMeta:
     turboServer: "https://<Turbo_server_URL>"
