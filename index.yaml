@@ -49,13 +49,13 @@ entries:
   turbodif:
   - apiVersion: v1
     appVersion: "8.0"
-    created: "2024-12-18T19:08:37.074602-05:00"
+    created: "2024-12-18T19:32:57.239854-05:00"
     description: A Helm chart for Turbonomic data ingestion framework probe
-    digest: ab28dca57218d3f4a67158a9810b74d1190825a5c3d2116d54732b946e8c6981
+    digest: 5dfc6004767a6d066b44997b1d250aebee9c4f5972c5073c4d57fb1447eaa70e
     name: turbodif
     sources:
     - https://github.com/turbonomic/data-ingestion-framework
     urls:
     - https://ibm.github.io/turbonomic-container-platform/downloads/data-ingestion-framework/turbodif-8.14.5.tgz
     version: 8.14.5
-generated: "2024-12-18T19:08:37.074333-05:00"
+generated: "2024-12-18T19:32:57.239573-05:00"
