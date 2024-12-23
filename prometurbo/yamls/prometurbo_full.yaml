@@ -83,7 +83,7 @@ spec:
       containers:
         - name: prometurbo
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/prometurbo:8.14.5
+          image: icr.io/cpopen/turbonomic/prometurbo:8.14.6
           imagePullPolicy: IfNotPresent
           args:
             - --v=2
@@ -95,7 +95,7 @@ spec:
               readOnly: true
         - name: turbodif
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/turbodif:8.14.5
+          image: icr.io/cpopen/turbonomic/turbodif:8.14.6
           imagePullPolicy: IfNotPresent
           env:
             # Do not change the following environment variable
@@ -138,12 +138,12 @@ data:
     {
       "communicationConfig": {
         "serverMeta": {
-          "version": "<TURBONOMIC_SERVER_VERSION>",
-          "turboServer": "https://<TURBO-SERVER-ADDRESS>:<PORT>"
+          "version": "8.14.6",
+          "turboServer": "https://<Turbo_server_URL>"
         },
         "restAPIConfig": {
-          "opsManagerUserName": "<TURBO-SERVER-USERNAME>",
-          "opsManagerPassword": "<TURBO-SERVER-PASSWORD>"
+          "opsManagerUserName": "<Turbo_username>",
+          "opsManagerPassword": "<Turbo_password>"
         },
         "sdkProtocolConfig": {
            "registrationTimeoutSec": 300,
@@ -151,7 +151,7 @@ data:
         }
       },
       "targetConfig": {
-        "targetName": "Prometheus",
+        "targetName": <Cluster_name>,
         "targetAddress": "http://127.0.0.1:8081/metrics"
       }
     }
