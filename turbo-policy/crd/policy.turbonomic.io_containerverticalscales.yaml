@@ -1,0 +1,257 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.12.0
+  name: containerverticalscales.policy.turbonomic.io
+spec:
+  group: policy.turbonomic.io
+  names:
+    kind: ContainerVerticalScale
+    listKind: ContainerVerticalScaleList
+    plural: containerverticalscales
+    singular: containerverticalscale
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ContainerVerticalScale is the Schema for the containerverticalscales
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ContainerVerticalScaleSpec defines the desired state of ContainerVerticalScale
+            properties:
+              behavior:
+                default:
+                  resize: Manual
+                description: The behavior of vertical resize actions
+                properties:
+                  resize:
+                    description: The Action mode of VerticalResize action
+                    enum:
+                    - Automatic
+                    - Manual
+                    - Recommend
+                    - Disabled
+                    type: string
+                  scaleDown:
+                    description: The Action mode of HorizontalScaleDown action
+                    enum:
+                    - Automatic
+                    - Manual
+                    - Recommend
+                    - Disabled
+                    type: string
+                  scaleUp:
+                    description: The Action mode of HorizontalScaleUp action
+                    enum:
+                    - Automatic
+                    - Manual
+                    - Recommend
+                    - Disabled
+                    type: string
+                type: object
+              settings:
+                description: ContainerVerticalScaleSpec defines the desired state
+                  of ContainerVerticalScale
+                properties:
+                  aggressiveness:
+                    default: p99
+                    description: Aggressiveness sets how agressively Turbonomic will
+                      resize in response to resource utilization. For example, assume
+                      a 95 percentile. The percentile utilization is the highest value
+                      that 95% of the observed samples fall below. By using a percentile,
+                      actions can resize to a value that is below occational utilization
+                      spikes.
+                    enum:
+                    - p90
+                    - p95
+                    - p99
+                    - p99_1
+                    - p99_5
+                    - p99_9
+                    - p100
+                    type: string
+                  cpuThrottlingTolerance:
+                    default: 20%
+                    description: CpuThrottlingTolerance defines the acceptable level
+                      of throttling and directly impacts the resize actions generated
+                      on CPU Limits. The value ranges from 0% to 70%
+                    pattern: ^(?:[0-6]?[0-9]|70|\b0)%$
+                    type: string
+                  increments:
+                    default:
+                      cpu: 100m
+                      memory: 128M
+                    description: Resize increment constants for CPU and Memory
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  limits:
+                    default:
+                      cpu:
+                        max: 64
+                        min: 500m
+                        recommendAboveMax: true
+                        recommendBelowMin: false
+                      memory:
+                        max: 104857M
+                        min: 10M
+                        recommendAboveMax: true
+                        recommendBelowMin: true
+                    description: LimitResourceConstraints defines the resource constraints
+                      for CPU limit and Memory limit.
+                    properties:
+                      cpu:
+                        description: LimitResourceConstraint defines the resize constraint
+                          for CPU limit or Memory Limit
+                        properties:
+                          max:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          min:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          recommendAboveMax:
+                            type: boolean
+                          recommendBelowMin:
+                            type: boolean
+                        type: object
+                      memory:
+                        description: LimitResourceConstraint defines the resize constraint
+                          for CPU limit or Memory Limit
+                        properties:
+                          max:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          min:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          recommendAboveMax:
+                            type: boolean
+                          recommendBelowMin:
+                            type: boolean
+                        type: object
+                    type: object
+                  observationPeriod:
+                    default:
+                      max: 30d
+                      min: 1d
+                    properties:
+                      max:
+                        enum:
+                        - 90d
+                        - 30d
+                        - 7d
+                        type: string
+                      min:
+                        description: The sample period ensures historical data for
+                          a minimu numbers of days before calculationg Agressiveness.
+                          This ensures a minimum set of data points before the action
+                          is generated.
+                        enum:
+                        - none
+                        - 1d
+                        - 3d
+                        - 7d
+                        type: string
+                    type: object
+                  rateOfResize:
+                    default: high
+                    description: 'Resize rate Low: resize by a single incremental
+                      only Medium: resize steps are 1/4 of the difference between
+                      the current and optimal siz High: resize steps are calculated
+                      to the optomcal size'
+                    enum:
+                    - low
+                    - medium
+                    - high
+                    type: string
+                  requests:
+                    default:
+                      cpu:
+                        min: 10m
+                        recommendBelowMin: false
+                      memory:
+                        min: 10M
+                        recommendBelowMin: true
+                    description: RequestResourceConstraints defines the resource constraints
+                      for CPU request and Memory request
+                    properties:
+                      cpu:
+                        description: RequestResourceConstraint defines the resize
+                          constraint for CPU request and Memory quest. For now Turbo
+                          only generate resize down for CPU and Memory request.
+                        properties:
+                          min:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          recommendBelowMin:
+                            type: boolean
+                        type: object
+                      memory:
+                        description: RequestResourceConstraint defines the resize
+                          constraint for CPU request and Memory quest. For now Turbo
+                          only generate resize down for CPU and Memory request.
+                        properties:
+                          min:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          recommendBelowMin:
+                            type: boolean
+                        type: object
+                    type: object
+                type: object
+            type: object
+          status:
+            description: ContainerVerticalScaleStatus defines the observed state of
+              ContainerVerticalScale
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

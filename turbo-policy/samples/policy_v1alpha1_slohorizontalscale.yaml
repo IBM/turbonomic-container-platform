@@ -1,0 +1,27 @@
+# This is an example of SLOHorizontalScale policy
+apiVersion: policy.turbonomic.io/v1alpha1
+kind: SLOHorizontalScale
+metadata:
+  name: slo-horizontal-scale-sample
+  namespace: default
+spec:
+  # The minimum number of replicas of a service
+  minReplicas: 1
+  # The maximum number of replicas of a service
+  maxReplicas: 10
+  # The objectives of this SLOHorizontalScale policy
+  objectives:
+    - name: ResponseTime
+      value: 300
+    - name: ServiceTime
+      value: 300
+    - name: QueuingTime
+      value: 300
+    - name: ConcurrentQueries
+      value: 45
+    - name: Transaction
+      value: 20
+  # The behavior of SLO driven horizontal scale actions
+  behavior:
+    scaleUp: Automatic
+    scaleDown: Disabled

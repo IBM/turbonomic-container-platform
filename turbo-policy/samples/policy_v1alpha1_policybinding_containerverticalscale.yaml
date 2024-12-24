@@ -1,0 +1,16 @@
+# policy and the target services that the policy applies to
+apiVersion: policy.turbonomic.io/v1alpha1
+kind: PolicyBinding
+metadata:
+  name: policy-binding-container-verticalscale-sample
+spec:
+  # The reference to the ContainerVerticalScale policy
+  policyRef:
+    kind: ContainerVerticalScale
+    name: container-vertical-scale-sample
+  # The target services that the policy applies to
+  targets:
+    - kind: Deployment
+      apiVersion: apps/v1
+      name: .*topology-processor
+      container: .*topology-processor

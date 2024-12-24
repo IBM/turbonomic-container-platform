@@ -1,0 +1,41 @@
+apiVersion: policy.turbonomic.io/v1alpha1
+kind: ContainerVerticalScale
+metadata:
+  labels:
+    app.kubernetes.io/name: containerverticalscale
+    app.kubernetes.io/instance: containerverticalscale-sample
+    app.kubernetes.io/part-of: turbo-policy
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: turbo-policy
+  name: container-vertical-scale-sample
+spec:
+  settings:
+    limits:
+      cpu:
+        max: 64
+        min: 500m
+        recommendAboveMax: true
+        recommendBelowMin: false
+      memory:   
+        max: 104857M
+        min: 10M
+        recommendAboveMax: true
+        recommendBelowMin: true
+    requests:
+      cpu:
+        min: 10m
+        recommendBelowMin: true
+      memory:
+        min: 10M
+        recommendBelowMin: true
+    increments:
+      cpu: 100m
+      memory: 128M
+    observationPeriod:
+      min: 1d
+      max: 30d
+    rateOfResize: high
+    aggressiveness: p99
+    cpuThrottlingTolerance: 20%
+  behavior:
+    resize: Manual
