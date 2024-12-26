@@ -1,0 +1,27 @@
+{
+    "agent": {
+      "metrics_collection_interval": 60,
+      "run_as_user": "cwagent",
+      "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log"
+    },
+    "metrics": {
+      "namespace": "CWAgent",
+      "metrics_collected": {
+        "mem": {
+          "measurement": [
+            {
+              "name": "mem_available",
+              "rename": "MemoryAvailable",
+              "unit": "Bytes"
+            }
+          ]
+        }
+      },
+      "append_dimensions": {
+        "AutoScalingGroupName": "${aws:AutoScalingGroupName}",
+        "ImageId": "${aws:ImageId}",
+        "InstanceId": "${aws:InstanceId}",
+        "InstanceType": "${aws:InstanceType}"
+      }
+    }
+}

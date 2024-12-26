@@ -1,0 +1,43 @@
+{
+  "logs": {
+    "metrics_collected": {
+      "prometheus": {
+        "log_group_name": "dcgm-gpu",
+        "prometheus_config_path": "/opt/aws/amazon-cloudwatch-agent/var/prometheus.yaml",
+        "emf_processor": {
+          "metric_namespace": "DCGM/GPU",
+          "metric_unit": {
+            "DCGM_FI_PROF_DRAM_ACTIVE": "Percent",
+            "DCGM_FI_PROF_PIPE_FP16_ACTIVE": "Percent",
+            "DCGM_FI_PROF_PIPE_FP32_ACTIVE": "Percent",
+            "DCGM_FI_PROF_PIPE_FP64_ACTIVE": "Percent",
+            "DCGM_FI_PROF_PIPE_TENSOR_ACTIVE": "Percent"
+          },
+          "metric_declaration": [
+            {
+              "source_labels": [
+                "job"
+              ],
+              "dimensions": [
+                [
+                  "InstanceId",
+                  "device",
+                  "modelName"
+                ]
+              ],
+              "label_matcher": ".*dcgm.*",
+              "metric_selectors": [
+                "^DCGM_FI_PROF_DRAM_ACTIVE$",
+                "^DCGM_FI_PROF_PIPE_FP16_ACTIVE$",
+                "^DCGM_FI_PROF_PIPE_FP32_ACTIVE$",
+                "^DCGM_FI_PROF_PIPE_FP64_ACTIVE$",
+                "^DCGM_FI_PROF_PIPE_TENSOR_ACTIVE$"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "force_flush_interval": 60
+  }
+}
