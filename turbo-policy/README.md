@@ -1,1 +1,1 @@
-See the [documentation](https://www.ibm.com/docs/en/tarm/latest?topic=spec-container-policies-declarative-configuration)
+See the documentation for [ContainerVerticalScale](https://www.ibm.com/docs/en/tarm/latest?topic=spec-container-policies-declarative-configuration) and [SLOHorizontalScale](https://www.ibm.com/docs/en/tarm/8.14.5?topic=service-container-platform-policies#policy_defaults_Service_K8s__title__4)
