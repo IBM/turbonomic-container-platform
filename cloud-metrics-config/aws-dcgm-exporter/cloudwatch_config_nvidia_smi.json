@@ -1,0 +1,13 @@
+{
+    "metrics": {
+      "namespace": "CWAgent",
+      "metrics_collected": {
+        "nvidia_gpu": {
+          "measurement": [
+            "utilization_gpu",
+            "memory_used"
+          ]
+        }
+      }
+    }
+}
