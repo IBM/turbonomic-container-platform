@@ -52,6 +52,7 @@ spec:
           metadata:
             type: object
           spec:
+            default: {}
             description: KubeturboSpec defines the desired state of Kubeturbo
             properties:
               HANodeConfig:
@@ -66,23 +67,16 @@ spec:
                     type: string
                 type: object
               annotationWhitelist:
-                default:
-                  containerSpec: ""
-                  namespace: ""
-                  workloadController: ""
                 description: |-
                   The annotationWhitelist allows users to define regular expressions to allow kubeturbo to collect
                   matching annotations for the specified entity type. By default, no annotations are collected.
                   These regular expressions accept the RE2 syntax (except for \C) as defined here: https://github.com/google/re2/wiki/Syntax
                 properties:
                   containerSpec:
-                    default: ""
                     type: string
                   namespace:
-                    default: ""
                     type: string
                   workloadController:
-                    default: ""
                     type: string
                 type: object
               annotations:
@@ -197,19 +191,16 @@ spec:
                     type: boolean
                 type: object
               daemonPodDetectors:
-                default: {}
                 description: |-
                   You can use this configuration to define how daemon pods are identified.
                   Note if you do not enable daemonPodDetectors, the default is to identify all pods running as kind = daemonSet
                   Any entry for daemonPodDetectors would overwrite default. Recommend you do not use this parameter.
                 properties:
                   namespacePatterns:
-                    default: []
                     items:
                       type: string
                     type: array
                   podNamePatterns:
-                    default: []
                     items:
                       type: string
                     type: array
@@ -278,7 +269,8 @@ spec:
                     type: string
                   pullPolicy:
                     default: IfNotPresent
-                    description: Define pull policy
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
                     type: string
                   repository:
                     default: icr.io/cpopen/turbonomic/kubeturbo
@@ -1159,12 +1151,10 @@ spec:
                     type: array
                 type: object
               replicaCount:
-                default: 1
                 description: Kubeturbo replicaCount
                 format: int32
                 type: integer
               resources:
-                default: {}
                 description: Kubeturbo resource configuration
                 properties:
                   limits:
@@ -1305,6 +1295,7 @@ spec:
                 description: Timestamp of the last sync up
                 type: string
             type: object
+            x-kubernetes-preserve-unknown-fields: true
         required:
         - spec
         type: object
@@ -1504,7 +1495,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.14.6
+        image: icr.io/cpopen/kubeturbo-operator:8.15.0
         livenessProbe:
           httpGet:
             path: /healthz
