@@ -7,9 +7,9 @@ replicaCount: 1
 # Replace the image with desired version:8.7.5 or snapshot version:8.7.5-SNAPSHOT from icr.io
 image:
   prometurboRepository: icr.io/cpopen/turbonomic/prometurbo
-  prometurboTag: 8.15.0
+  prometurboTag: 8.15.1
   turbodifRepository: icr.io/cpopen/turbonomic/turbodif
-  turbodifTag: 8.15.0
+  turbodifTag: 8.15.1
   pullPolicy: IfNotPresent
 
 # Specify the name of the serviceaccount
@@ -28,22 +28,22 @@ roleBinding: "prometurbo-binding"
 
 # Turbonomic server version and address
 serverMeta:
-  version: 8.15.0
-  turboServer: https://<Turbo_server_URL>
+  version: 8.15.1
+  turboServer: https://Turbo_server_URL
 
 # Turbonomic server api user and password
 # The opsManagerUserName requires Turbo administrator role
 restAPIConfig:
   turbonomicCredentialsSecretName: "turbonomic-credentials"
-  opsManagerUserName: <Turbo_username>
-  opsManagerPassword: <Turbo_password>
+  opsManagerUserName: Turbo_username
+  opsManagerPassword: Turbo_password
 
 sdkProtocolConfig:
   registrationTimeoutSec: 300
   restartOnRegistrationTimeout: false
 
 # Specify a UNIQUE target name
-targetName: <Cluster_name>
+targetName: Cluster_name
 # Specify metric endpoint from Prometurbo
 targetAddress: http://127.0.0.1:8081/metrics
 
@@ -56,6 +56,8 @@ args:
   logginglevel: 2
   # When set to true, ignore merging a commodity if a commodity of the same type already exists
   ignoreCommodityIfPresent: false
+  # The discovery interval in seconds for running the probe
+  discoveryIntervalSec: 600
 
 resources: {}
 

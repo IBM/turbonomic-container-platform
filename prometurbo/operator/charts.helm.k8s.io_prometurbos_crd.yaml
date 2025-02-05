@@ -163,6 +163,9 @@ spec:
                   ignoreCommodityIfPresent:
                     description: Ignore merging a commodity if a commodity of the same type already exists
                     type: boolean
+                  discoveryIntervalSec:
+                    description: The discovery interval in seconds, default value is 600
+                    type: integer
               resources:
                 description: Prometurbo resource configuration
                 type: object

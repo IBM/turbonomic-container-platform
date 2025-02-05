@@ -53,6 +53,9 @@ spec:
 {{- if .Values.args.ignoreCommodityIfPresent }}
           - --ignoreCommodityIfPresent=true
 {{- end }}
+{{- if .Values.args.discoveryIntervalSec }}
+          - --discovery-interval-sec={{ .Values.args.discoveryIntervalSec }}
+{{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
           volumeMounts:

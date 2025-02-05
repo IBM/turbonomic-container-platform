@@ -16,14 +16,15 @@ spec:
 
   # Turbo server version and address
   serverMeta:
-    version: 8.15.0
-    turboServer: https://<Turbo_server_URL>
+    version: 8.15.1
+    turboServer: https://Turbo_server_URL
 
   # Turbo server api user and password stored in a secret or optionally specified as username and password
   # The opsManagerUserName requires Turbo administrator role
   restAPIConfig:
-    opsManagerUserName: <Turbo_username>
-    opsManagerPassword: <Turbo_password>
+    turbonomicCredentialsSecretName: "turbonomic-credentials"
+    opsManagerUserName: Turbo_username
+    opsManagerPassword: Turbo_password
 
   # Configurations to register probe with Turbo Server
   #sdkProtocolConfig:
@@ -31,7 +32,7 @@ spec:
     #  restartOnRegistrationTimeout: false
 
   # Specify a UNIQUE target name
-  targetName: <Cluster_name>
+  targetName: Cluster_name
 
   # Uncomment next lines to use dynamic logging level
   # Changing this value does not require restart of Kubeturbo but takes about 1 minute to take effect
@@ -44,3 +45,5 @@ spec:
     logginglevel: 2
     # When set to true, ignore merging a commodity if a commodity of the same type already exists
     #ignoreCommodityIfPresent: false
+    # The discovery interval in seconds for running the probe
+    #discoveryIntervalSec: 600
