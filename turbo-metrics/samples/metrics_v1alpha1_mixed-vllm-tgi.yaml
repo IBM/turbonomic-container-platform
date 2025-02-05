@@ -135,3 +135,11 @@ spec:
           OR rate(tgi_request_input_count{}[1h]) == 0
         # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
         # promql: avg_over_time(tgi_batch_current_size{}[10m]) OR rate(tgi_request_input_count{}[1h]) == 0
+    - type: llmCache
+      queries:
+      - type: used
+        # A similar "A >= B OR B OR C == 0" as above to retrieve the current batch size, with a 0 value under the
+        # scenario of zero-transaction.
+        promql: avg_over_time(vllm:gpu_cache_usage_perc{}[10m]) >
+          avg_over_time(vllm:gpu_cache_usage_perc{}[1h]) OR
+          avg_over_time(vllm:gpu_cache_usage_perc{}[1h])
