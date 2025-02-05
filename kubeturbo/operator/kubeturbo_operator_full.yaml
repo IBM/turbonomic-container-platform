@@ -165,7 +165,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.15.0
+        image: icr.io/cpopen/kubeturbo-operator:8.15.1
         livenessProbe:
           httpGet:
             path: /healthz
@@ -196,6 +196,18 @@ spec:
       serviceAccountName: kubeturbo-operator
       terminationGracePeriodSeconds: 10
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: turbonomic-credentials
+  namespace: turbo
+type: Opaque
+data:
+  # username: <Username_encoded_base64>
+  # password: <Password_encoded_base64>
+  clientid: <Client_id_encoded_base64>
+  clientsecret: <Client_secret_encoded_base64>
+---
 apiVersion: charts.helm.k8s.io/v1
 kind: Kubeturbo
 metadata:
@@ -223,7 +235,7 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.15.0"
+    tag: "8.15.1"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # busyboxRepository: registry.access.redhat.com/ubi9/ubi-minimal
@@ -316,15 +328,3 @@ spec:
     # Workload Controllers. 
     # operatorControlledWorkloadsPatterns:
     # - .*-example.*
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: turbonomic-credentials
-  namespace: turbo
-type: Opaque
-data:
-  # username: <Username_encoded_base64>
-  # password: <Password_encoded_base64>
-  clientid: <Client_id_encoded_base64>
-  clientsecret: <Client_secret_encoded_base64>

@@ -191,6 +191,7 @@ spec:
                     type: boolean
                 type: object
               daemonPodDetectors:
+                default: {}
                 description: |-
                   You can use this configuration to define how daemon pods are identified.
                   Note if you do not enable daemonPodDetectors, the default is to identify all pods running as kind = daemonSet
@@ -1495,7 +1496,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.15.0
+        image: icr.io/cpopen/kubeturbo-operator:8.15.1
         livenessProbe:
           httpGet:
             path: /healthz

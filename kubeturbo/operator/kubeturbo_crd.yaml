@@ -178,6 +178,7 @@ spec:
                     type: boolean
                 type: object
               daemonPodDetectors:
+                default: {}
                 description: |-
                   You can use this configuration to define how daemon pods are identified.
                   Note if you do not enable daemonPodDetectors, the default is to identify all pods running as kind = daemonSet
