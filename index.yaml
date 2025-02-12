@@ -49,10 +49,10 @@ entries:
   prometurbo:
   - apiVersion: v1
     appVersion: "8.0"
-    created: "2025-02-12T18:51:22.151053-05:00"
+    created: "2025-02-12T18:52:26.435528-05:00"
     description: A Helm chart for Turbonomic prometurbo metric server and data ingestion
       framework probe
-    digest: df038cf12006820d20e02d7e63e272c2b19971461ea5c0334b8a67f6f81a9e6e
+    digest: b297e2f884e42cadd0ab9768d7c7e45246c64de97181c23f09772e68d8dbf2fa
     name: prometurbo
     sources:
     - https://github.com/turbonomic/prometurbo
@@ -137,4 +137,4 @@ entries:
     urls:
     - https://ibm.github.io/turbonomic-container-platform/downloads/data-ingestion-framework/turbodif-8.14.5.tgz
     version: 8.14.5
-generated: "2025-02-12T18:51:22.150382-05:00"
+generated: "2025-02-12T18:52:26.433325-05:00"
