@@ -1,13 +1,9 @@
 apiVersion: charts.helm.k8s.io/v1
 kind: Prometurbo
 metadata:
-  labels:
-    app.kubernetes.io/name: prometurbo
-    app.kubernetes.io/instance: prometurbo-sample
-    app.kubernetes.io/part-of: prometurbo-deploy
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: prometurbo-deploy
-  name: prometurbo-sample
+  name: prometurbo-release
+  annotations:
+    helm.sdk.operatorframework.io/rollback-force: "false"
 spec:
   # Specify the name of the serviceaccount
   #serviceAccountName: "turbo-user"
@@ -18,24 +14,16 @@ spec:
   # Specify the name of clusterrolebinding
   #roleBinding: "prometurbo-binding"
 
-  # Version tag of each container that the Prometurbo pod will use
-  # If the version is not provided, the operator will match the version with the tagged operator version
-  image:
-    prometurboTag: 8.15.2
-    turbodifTag: 8.15.2
-
   # Turbo server version and address
-  # If the version is not provided, the operator will match the version with the tagged operator version
   serverMeta:
-    version: 8.15.2
-    turboServer: https://<Turbo_server_URL>
+    turboServer: https://Turbo_server_URL
 
   # Turbo server api user and password stored in a secret or optionally specified as username and password
   # The opsManagerUserName requires Turbo administrator role
   restAPIConfig:
-    turbonomicCredentialsSecretName: "turbonomic-credentials"
-    opsManagerUserName: <Turbo_username>
-    opsManagerPassword: <Turbo_password>
+    # turbonomicCredentialsSecretName: turbonomic-credentials
+    opsManagerUserName: Turbo_username
+    opsManagerPassword: Turbo_password
 
   # Configurations to register probe with Turbo Server
   #sdkProtocolConfig:
@@ -43,7 +31,7 @@ spec:
     #  restartOnRegistrationTimeout: false
 
   # Specify a UNIQUE target name
-  targetName: <Cluster_name>
+  targetName: Cluster_name
 
   # Uncomment next lines to use dynamic logging level
   # Changing this value does not require restart of Kubeturbo but takes about 1 minute to take effect
@@ -56,3 +44,5 @@ spec:
     logginglevel: 2
     # When set to true, ignore merging a commodity if a commodity of the same type already exists
     #ignoreCommodityIfPresent: false
+    # The discovery interval in seconds for running the probe
+    #discoveryIntervalSec: 600

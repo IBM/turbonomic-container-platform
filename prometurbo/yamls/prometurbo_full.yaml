@@ -148,7 +148,6 @@ data:
     {
       "communicationConfig": {
         "serverMeta": {
-          "version": "8.15.2",
           "turboServer": "https://<Turbo_server_URL>"
         },
         "restAPIConfig": {
@@ -161,7 +160,7 @@ data:
         }
       },
       "targetConfig": {
-        "targetName": "<Cluster_name>",
+        "targetName": <Cluster_name>,
         "targetAddress": "http://127.0.0.1:8081/metrics"
       }
     }
