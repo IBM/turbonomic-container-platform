@@ -24,7 +24,7 @@
 
 ## Overview
 
-Operator Resource Mapping (ORM) is designed to map identifying exactly how to update a Custom Resource so that assets like [Kubeturbo](https://github.com/turbonomic/kubeturbo/wiki) can programmatically update workload specifications that are controlled by an Operator, for example to [vertically scale containers](https://github.com/turbonomic/kubeturbo/wiki/Action-Details#resizing-vertical-scaling-of-containerized-workloads) by updating container specs or [horizontally scale pods](https://github.com/turbonomic/kubeturbo/wiki/Action-Details#slo-horizontal-scaling-private-preview) by managing the number of replicas.
+Operator Resource Mapping (ORM) is designed to map identifying exactly how to update a Custom Resource so that assets like [Kubeturbo](https://www.ibm.com/docs/en/tarm/latest?topic=configuration-container-platform-targets) can programmatically update workload specifications that are controlled by an Operator, for example to [vertically scale containers](https://www.ibm.com/docs/en/tarm/latest?topic=platform-container) by updating container specs or [horizontally scale pods](https://www.ibm.com/docs/en/tarm/latest?topic=platform-container-pod) by managing the number of replicas.
 
 In this setup, an Operator oversees the lifecycle of microservice-based applications using a declarative approach to maintain their intended state (e.g., Pod replicas, memory limits, etc.). However, any direct interventions by Turbo to alter the size of workload controllers such as StatefulSet, DaemonSet, Deployment, either vertically or horizontally, will be reverted by the Operator.
 
@@ -176,7 +176,7 @@ I0118 22:34:08.013144       1 k8s_discovery_client.go:327] Discovered 1 v2 ORM R
 
 ### Note:
 
-In order for Kubeturbo to access Operator managed CR's from CRD and map the resources using ORM, Kubeturbo should run with cluster-admin role. You can find more details about Kubeturbo Cluster roles [here](https://github.com/turbonomic/kubeturbo/wiki/Kubeturbo-Cluster-Roles)
+In order for Kubeturbo to access Operator managed CR's from CRD and map the resources using ORM, Kubeturbo should run with cluster-admin role. You can find more details about Kubeturbo Cluster roles [here](https://www.ibm.com/docs/en/tarm/latest?topic=requirements-cluster-roles-kubeturbo)
 
 ### Step 3 Try Redis example
 
