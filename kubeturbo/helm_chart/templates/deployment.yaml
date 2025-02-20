@@ -39,6 +39,8 @@ spec:
 {{- if .Values.kubeturboPodScheduling.tolerations }}
       tolerations: {{- .Values.kubeturboPodScheduling.tolerations | toYaml | nindent 8 }}
 {{- end }}
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: {{ .Chart.Name }}
           env:
@@ -110,6 +112,13 @@ spec:
           {{- if .Values.args.satelliteLocationProvider }}
           - --satellite-location-provider={{ .Values.args.satelliteLocationProvider }}
           {{- end }}
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - ALL
           resources:
 {{ toYaml .Values.resources | indent 12 }}
           volumeMounts:

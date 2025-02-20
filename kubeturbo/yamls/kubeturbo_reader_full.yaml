@@ -225,69 +225,78 @@ spec:
       #   operator: "Equal"
       #   value: "mytaint"
       #   effect: "NoSchedule"
+      securityContext:
+        runAsNonRoot: true
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
         image: icr.io/cpopen/turbonomic/kubeturbo:8.15.2
         env:
-          - name: KUBETURBO_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
+        - name: KUBETURBO_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         args:
-          - --turboconfig=/etc/kubeturbo/turbo.config
-          - --v=2
-          # Comment out the following two args if running in k8s 1.10 or older, or
-          # change to https=false and port=10255 if unsecure kubelet read only is configured
-          - --kubelet-https=true
-          - --kubelet-port=10250
-          # Uncomment for pod moves in OpenShift
-          #- --scc-support=*
-          # Uncomment for pod moves with pvs
-          #- --fail-volume-pod-moves=false
-          # Uncomment to override default, and specify your own location
-          #- --busybox-image=docker.io/busybox
-          # or uncomment below to pull from RHCC
-          #- --busybox-image=registry.access.redhat.com/ubi9/ubi-minimal
-          # Uncomment to specify the secret name which holds the credentials to busybox image
-          #- --busybox-image-pull-secret=<secret-name>
-          # Specify nodes to exclude from cpu frequency getter job.
-          # Note kubernetes.io/os=windows and/or beta.kubernetes.io/os=windows labels will be automatically excluded by default.
-          # If specified all the labels will be used to select the node ignoring the default.
-          #- --cpufreq-job-exclude-node-labels=kubernetes.io/key=value
-          # The complete cpufreqgetter image uri used for fallback node cpu frequency getter job.
-          #- --cpufreqgetter-image=icr.io/cpopen/turbonomic/cpufreqgetter
-          # The name of the secret that stores the image pull credentials for cpufreqgetter image.
-          #- --cpufreqgetter-image-pull-secret=<secret-name>
-          # Uncomment to stitch using IP, or if using Openstack, Hyper-V/VMM
-          #- --stitch-uuid=false
-          # Uncomment to customize readiness retry threshold. Kubeturbo will try readiness-retry-threshold times before giving up. Default is 60. The retry interval is 10s.
-          #- --readiness-retry-threshold=60
-          # Uncomment to disable the cleanup of the resources which are created by kubeturbo for the scc impersonation.
-          #- --cleanup-scc-impersonation-resources=false
-          # Uncomment to skip creating the resources the scc impersonation
-          #- --skip-creating-scc-impersonation-resources=true
-          # [ArgoCD integration] The email to be used to push changes to git
-          #- --git-email=""
-          # [ArgoCD integration] The username to be used to push changes to git
-          #- --git-username=""
-          # [ArgoCD integration] The name of the secret which holds the git credentials
-          #- --git-secret-name""
-          # [ArgoCD integration] The namespace of the secret which holds the git credentials
-          #- --git-secret-namespace=""
-          # [ArgoCD integration] The commit mode that should be used for git action executions. One of {request|direct}. Defaults to direct
-          #- --git-commit-mode=""
+        - --turboconfig=/etc/kubeturbo/turbo.config
+        - --v=2
+        # Comment out the following two args if running in k8s 1.10 or older, or
+        # change to https=false and port=10255 if unsecure kubelet read only is configured
+        - --kubelet-https=true
+        - --kubelet-port=10250
+        # Uncomment for pod moves in OpenShift
+        #- --scc-support=*
+        # Uncomment for pod moves with pvs
+        #- --fail-volume-pod-moves=false
+        # Uncomment to override default, and specify your own location
+        #- --busybox-image=docker.io/busybox
+        # or uncomment below to pull from RHCC
+        #- --busybox-image=registry.access.redhat.com/ubi9/ubi-minimal
+        # Uncomment to specify the secret name which holds the credentials to busybox image
+        #- --busybox-image-pull-secret=<secret-name>
+        # Specify nodes to exclude from cpu frequency getter job.
+        # Note kubernetes.io/os=windows and/or beta.kubernetes.io/os=windows labels will be automatically excluded by default.
+        # If specified all the labels will be used to select the node ignoring the default.
+        #- --cpufreq-job-exclude-node-labels=kubernetes.io/key=value
+        # The complete cpufreqgetter image uri used for fallback node cpu frequency getter job.
+        #- --cpufreqgetter-image=icr.io/cpopen/turbonomic/cpufreqgetter
+        # The name of the secret that stores the image pull credentials for cpufreqgetter image.
+        #- --cpufreqgetter-image-pull-secret=<secret-name>
+        # Uncomment to stitch using IP, or if using Openstack, Hyper-V/VMM
+        #- --stitch-uuid=false
+        # Uncomment to customize readiness retry threshold. Kubeturbo will try readiness-retry-threshold times before giving up. Default is 60. The retry interval is 10s.
+        #- --readiness-retry-threshold=60
+        # Uncomment to disable the cleanup of the resources which are created by kubeturbo for the scc impersonation.
+        #- --cleanup-scc-impersonation-resources=false
+        # Uncomment to skip creating the resources the scc impersonation
+        #- --skip-creating-scc-impersonation-resources=true
+        # [ArgoCD integration] The email to be used to push changes to git
+        #- --git-email=""
+        # [ArgoCD integration] The username to be used to push changes to git
+        #- --git-username=""
+        # [ArgoCD integration] The name of the secret which holds the git credentials
+        #- --git-secret-name""
+        # [ArgoCD integration] The namespace of the secret which holds the git credentials
+        #- --git-secret-namespace=""
+        # [ArgoCD integration] The commit mode that should be used for git action executions. One of {request|direct}. Defaults to direct
+        #- --git-commit-mode=""
+        securityContext:
+          privileged: false
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         volumeMounts:
-          # volume will be created, any name will work and must match below
-          - name: turbo-volume
-            mountPath: /etc/kubeturbo
-            readOnly: true
-          - name: turbonomic-credentials-volume
-            # This mount path cannot be changed
-            mountPath: /etc/turbonomic-credentials
-            readOnly: true
-          - name: varlog
-            mountPath: /var/log
+        # volume will be created, any name will work and must match below
+        - name: turbo-volume
+          mountPath: /etc/kubeturbo
+          readOnly: true
+        - name: turbonomic-credentials-volume
+          # This mount path cannot be changed
+          mountPath: /etc/turbonomic-credentials
+          readOnly: true
+        - name: varlog
+          mountPath: /var/log
       volumes:
       - name: turbo-volume
         configMap:
