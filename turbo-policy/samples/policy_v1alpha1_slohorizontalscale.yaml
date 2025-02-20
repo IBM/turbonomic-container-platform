@@ -21,6 +21,8 @@ spec:
       value: 45
     - name: Transaction
       value: 20
+    - name: LLMCache
+      value: 70
   # The behavior of SLO driven horizontal scale actions
   behavior:
     scaleUp: Automatic

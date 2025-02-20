@@ -94,6 +94,8 @@ spec:
                   value: 50
                 - name: Transaction
                   value: 10
+                - name: LLMCache
+                  value: 70
                 description: The objectives of this SLOHorizontalScale policy
                 items:
                   properties:
