@@ -7,9 +7,9 @@ replicaCount: 1
 # Replace the image with desired version:8.7.5 or snapshot version:8.7.5-SNAPSHOT from icr.io
 image:
   prometurboRepository: icr.io/cpopen/turbonomic/prometurbo
-  prometurboTag: 8.15.2
+  prometurboTag: 8.15.3
   turbodifRepository: icr.io/cpopen/turbonomic/turbodif
-  turbodifTag: 8.15.2
+  turbodifTag: 8.15.3
   pullPolicy: IfNotPresent
 
 # Specify the name of the serviceaccount
@@ -28,12 +28,13 @@ roleBinding: "prometurbo-binding"
 
 # Turbonomic server version and address
 serverMeta:
+  version: 8.15.3
   turboServer: https://Turbo_server_URL
 
 # Turbonomic server api user and password
 # The opsManagerUserName requires Turbo administrator role
 restAPIConfig:
-  # turbonomicCredentialsSecretName: turbonomic-credentials
+  turbonomicCredentialsSecretName: "turbonomic-credentials"
   opsManagerUserName: Turbo_username
   opsManagerPassword: Turbo_password
 

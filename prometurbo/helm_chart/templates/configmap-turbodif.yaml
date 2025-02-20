@@ -7,13 +7,12 @@ data:
     {
       "communicationConfig": {
         "serverMeta": {
+          "version": "{{ .Values.serverMeta.version }}",
           "turboServer": "{{ .Values.serverMeta.turboServer }}"
         },
         "restAPIConfig": {
-          {{- if and .Values.restAPIConfig.opsManagerUserName .Values.restAPIConfig.opsManagerPassword }}
-           "opsManagerUserName": "{{ .Values.restAPIConfig.opsManagerUserName }}",
-           "opsManagerPassword": "{{ .Values.restAPIConfig.opsManagerPassword }}"
-          {{- end }}
+          "opsManagerUserName": "{{ .Values.restAPIConfig.opsManagerUserName }}",
+          "opsManagerPassword": "{{ .Values.restAPIConfig.opsManagerPassword }}"
         },
         "sdkProtocolConfig": {
            "registrationTimeoutSec": {{ .Values.sdkProtocolConfig.registrationTimeoutSec }},
@@ -24,8 +23,8 @@ data:
       "targetConfig": {
         "targetName": "{{ .Values.targetName }}",
         "targetAddress": "{{ .Values.targetAddress }}"
-      {{- end }}
       }
+      {{- end }}
     }
   turbo-autoreload.config: |-
     {

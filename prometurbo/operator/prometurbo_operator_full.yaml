@@ -1,92 +1,152 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: prometurbo-deploy
+    app.kubernetes.io/instance: system
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: namespace
+    app.kubernetes.io/part-of: prometurbo-deploy
+  name: turbo
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: prometurbo-deploy
+    app.kubernetes.io/instance: prometurbo-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: serviceaccount
+    app.kubernetes.io/part-of: prometurbo-deploy
   name: prometurbo-operator
+  namespace: turbo
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: prometurbo-operator
 rules:
-  - apiGroups:
-      - ""
-      - apps
-      - extensions
-    resources:
-      - nodes
-      - pods
-      - configmaps
-      - deployments
-      - replicasets
-      - replicationcontrollers
-      - serviceaccounts
-    verbs:
-      - '*'
-  - apiGroups:
-      - ""
-      - apps
-      - extensions
-      - policy
-    resources:
-      - services
-      - secrets
-      - endpoints
-      - namespaces
-      - limitranges
-      - resourcequotas
-      - daemonsets
-      - persistentvolumes
-      - persistentvolumeclaims
-      - poddisruptionbudget
-    verbs:
-      - '*'
-  - apiGroups:
-      - ""
-    resources:
-      - nodes/spec
-      - nodes/stats
-    verbs:
-      - get
-  - apiGroups:
-      - charts.helm.k8s.io
-    resources:
-      - '*'
-    verbs:
-      - '*'
-  - apiGroups:
-      - rbac.authorization.k8s.io
-    resources:
-      - clusterroles
-      - clusterrolebindings
-    verbs:
-      - '*'
-  - apiGroups:
-      - coordination.k8s.io
-    resources:
-      - leases
-    verbs:
-      - create
-      - get
-      - list
-      - update
+- apiGroups:
+  - charts.helm.k8s.io
+  resources:
+  - prometurbos
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - charts.helm.k8s.io
+  resources:
+  - prometurbos/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - charts.helm.k8s.io
+  resources:
+  - prometurbos/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  - apps
+  resources:
+  - configmaps
+  - deployments
+  - serviceaccounts
+  - services
+  - secrets
+  verbs:
+  - '*'
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  - clusterrolebindings
+  verbs:
+  - '*'
+- apiGroups:
+  - metrics.turbonomic.io
+  resources:
+  - prometheusquerymappings
+  - prometheusserverconfigs
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - update
 ---
-kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: prometurbo-deploy
+    app.kubernetes.io/instance: manager-rolebinding
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: clusterrolebinding
+    app.kubernetes.io/part-of: prometurbo-deploy
   name: prometurbo-operator
 roleRef:
+  apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: prometurbo-operator
-  apiGroup: rbac.authorization.k8s.io
 subjects:
-  - kind: ServiceAccount
-    name: prometurbo-operator
-    namespace: turbo
+- kind: ServiceAccount
+  name: prometurbo-operator
+  namespace: turbo
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  labels:
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: prometurbo-deploy
+    app.kubernetes.io/instance: prometurbo-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: deployment
+    app.kubernetes.io/part-of: prometurbo-deploy
   name: prometurbo-operator
+  namespace: turbo
 spec:
   replicas: 1
   selector:
@@ -94,36 +154,48 @@ spec:
       name: prometurbo-operator
   template:
     metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: prometurbo-operator
       labels:
         name: prometurbo-operator
     spec:
-      serviceAccountName: prometurbo-operator
-      securityContext:
-        runAsNonRoot: true
       containers:
-      - name: prometurbo-operator
-        image: icr.io/cpopen/prometurbo-operator:8.15.2
-        imagePullPolicy: Always
+      - args:
+        - --leader-elect
+        command:
+        - /manager
         env:
         - name: WATCH_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: OPERATOR_NAME
-          value: "prometurbo-operator"
+        image: icr.io/cpopen/prometurbo-operator:8.15.3
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: prometurbo-operator
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
         securityContext:
-          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - ALL
-        volumeMounts:
-        - mountPath: /tmp
-          name: operator-tmpfs0
-      volumes:
-      - name: operator-tmpfs0
-        emptyDir: {}
+            - ALL
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: prometurbo-operator
       terminationGracePeriodSeconds: 10
