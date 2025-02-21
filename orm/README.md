@@ -24,7 +24,7 @@
 
 ## Overview
 
-Operator Resource Mapping (ORM) is designed to map identifying exactly how to update a Custom Resource so that assets like [Kubeturbo](https://www.ibm.com/docs/en/tarm/latest?topic=configuration-container-platform-targets) can programmatically update workload specifications that are controlled by an Operator, for example to [vertically scale containers](https://www.ibm.com/docs/en/tarm/latest?topic=platform-container) by updating container specs or [horizontally scale pods](https://www.ibm.com/docs/en/tarm/latest?topic=platform-container-pod) by managing the number of replicas.
+Operator Resource Mapping (ORM) is designed to map identifying exactly how to update a Custom Resource so that assets like [Kubeturbo](https://www.ibm.com/docs/en/tarm/latest?topic=configuration-container-platform-targets) can programmatically update workload specifications that are controlled by an Operator, for example to [vertically scale containers](https://www.ibm.com/docs/en/tarm/latest?topic=controller-workload-scale-actions) by updating container specs or [horizontally scale pods](https://www.ibm.com/docs/en/tarm/latest?topic=controller-workload-scale-actions) by managing the number of replicas.
 
 In this setup, an Operator oversees the lifecycle of microservice-based applications using a declarative approach to maintain their intended state (e.g., Pod replicas, memory limits, etc.). However, any direct interventions by Turbo to alter the size of workload controllers such as StatefulSet, DaemonSet, Deployment, either vertically or horizontally, will be reverted by the Operator.
 
