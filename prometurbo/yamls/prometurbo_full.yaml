@@ -103,6 +103,15 @@ spec:
             - name: prometurbo-config
               mountPath: /etc/prometurbo
               readOnly: true
+            - name: varlog
+              mountPath: /tmp
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
         - name: turbodif
           # Replace the image tag with desired version
           image: icr.io/cpopen/turbonomic/turbodif:8.15.3
@@ -114,14 +123,21 @@ spec:
           args:
             - --v=2
           volumeMounts:
-          - name: turbodif-config
-            mountPath: /etc/turbodif
-            readOnly: true
-          - name: turbonomic-credentials-volume
-            mountPath: /etc/turbonomic-credentials
-            readOnly: true
-          - name: varlog
-            mountPath: /var/log
+            - name: turbodif-config
+              mountPath: /etc/turbodif
+              readOnly: true
+            - name: turbonomic-credentials-volume
+              mountPath: /etc/turbonomic-credentials
+              readOnly: true
+            - name: varlog
+              mountPath: /var/log
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
       volumes:
         - name: prometurbo-config
           configMap:
@@ -136,6 +152,8 @@ spec:
             secretName: turbonomic-credentials
         - name: varlog
           emptyDir: {}
+      securityContext:
+        runAsNonRoot: true
       restartPolicy: Always
 ---
 apiVersion: v1

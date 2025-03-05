@@ -42,6 +42,15 @@ spec:
             - name: prometurbo-config
               mountPath: /etc/prometurbo
               readOnly: true
+            - name: varlog
+              mountPath: /tmp
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
         - name: turbodif
           image: {{ .Values.image.turbodifRepository }}:{{ .Values.image.turbodifTag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -67,6 +76,13 @@ spec:
             readOnly: true
           - name: varlog
             mountPath: /var/log
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
       volumes:
       - name: prometurbo-config
         configMap:
@@ -81,4 +97,6 @@ spec:
           secretName: {{ .Values.restAPIConfig.turbonomicCredentialsSecretName | quote }}
       - name: varlog
         emptyDir: {}
+      securityContext:
+        runAsNonRoot: true
       restartPolicy: Always
