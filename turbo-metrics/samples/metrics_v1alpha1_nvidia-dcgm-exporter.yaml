@@ -14,11 +14,20 @@ spec:
     - label: exported_container
       name: container
     - label: modelName
+      # label is kept in addition to labels for backward compatibility
+      labels: 
+      - modelName
+      - GPU_I_PROFILE
+      delimeter: "-MIG-"
       name: gpuModel
     - label: gpu
       name: gpuNum
     - isIdentifier: true
       label: UUID
+      # label is kept in addition to labels for backward compatibility
+      labels: 
+        - UUID
+        - GPU_I_ID
       name: id
     - label: exported_namespace
       name: namespace

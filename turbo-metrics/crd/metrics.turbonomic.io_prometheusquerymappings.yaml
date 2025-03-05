@@ -65,6 +65,10 @@ spec:
                               Matches field and use that as the attribute value instead. This field is only evaluated when the Matches
                               field is specified.
                             type: string
+                          delimeter:
+                            description: delimeter to use when combing values from
+                              multiple labels
+                            type: string
                           isIdentifier:
                             description: |-
                               IsIdentifier is an optional field that specifies if this attribute should be used as the identifier of an entity.
@@ -75,6 +79,13 @@ spec:
                               Label is the name of the label that contains the value for this attribute.
                               If the Matches field is not specified, the value of this label will be used as the attribute value.
                             type: string
+                          labels:
+                            description: |-
+                              Label can be a single string or array of strings, if both are not specified,
+                              the "name" field is used as the label
+                            items:
+                              type: string
+                            type: array
                           matches:
                             description: |-
                               Matches is an optional regular expression that can be used to extract a pattern from the label value and
@@ -84,7 +95,6 @@ spec:
                             description: The name of the attribute
                             type: string
                         required:
-                        - label
                         - name
                         type: object
                       minItems: 1

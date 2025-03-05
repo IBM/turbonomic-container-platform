@@ -6,6 +6,7 @@ metadata:
 spec:
   address: https://thanos-querier-openshift-monitoring.apps.cluster-address
   bearerToken:
+    # get the token from the secret prometheus-k8s-token-##### in namespace openshift-monitoring
     secretKeyRef:
       name: ocp-thanos-authorization-token
       key: authorizationToken
