@@ -25,18 +25,50 @@ spec:
     # This tries to guess the service by looking at the pod name.
     # If your pod does not follow this convention, then this method
     # will not work.
+    # This regex uses 2 sub regex patterns to catch service name
+    # 1.(.*)-[a-f0-9]{10}-[a-z0-9]{5}$
+    #   This will match when deployment/service name <47 chars where 
+    #   kubernetes doesn't do any name shortening before naming pods. 
+    #   [a-f0-9]{10} checks for replicaset hash, which is 10 chars
+    #   when there's no shortening.
+    #   [a-z0-9]{5}$ checks for pod hash which is always present at the
+    #   last 5 chars.
+    # 2.(.*)-[a-f0-9]{0,10}[a-z0-9]{5}$
+    #   If deployment/service name >= 47 and <=57 chars, kubernetes 
+    #   truncates hyphens, replicaset hash and then deployment, so as to adhere 
+    #   to 63 character limit for pod.
+    #   [a-f0-9]{0,10}[a-z0-9]{5}$ checks for merged replicaset hash, pod hash
+    #   when there's no hyphens present between both hashes.
+    # 1 and 2 both won't work if deployment is > 57 chars.
     #- label: pod
+    #  as: service
     #  name: service
-    #  matches: (.*)-[a-f0-9]{7,10}-[a-z0-9]{5}
+    #  matches: (.*)-[a-f0-9]{10}-[a-z0-9]{5}$|(.*)-[a-f0-9]{0,10}[a-z0-9]{5}$
     - label: service
       name: service
     # If service is not available please use the below for service.
     # This tries to guess the service by looking at the pod name.
     # If your pod does not follow this convention, then this method
     # will not work.
+    # This regex uses 2 sub regex patterns to catch service name
+    # 1.(.*)-[a-f0-9]{10}-[a-z0-9]{5}$
+    #   This will match when deployment/service name <47 chars where 
+    #   kubernetes doesn't do any name shortening before naming pods. 
+    #   [a-f0-9]{10} checks for replicaset hash, which is 10 chars
+    #   when there's no shortening.
+    #   [a-z0-9]{5}$ checks for pod hash which is always present at the
+    #   last 5 chars.
+    # 2.(.*)-[a-f0-9]{0,10}[a-z0-9]{5}$
+    #   If deployment/service name >= 47 and <=57 chars, kubernetes 
+    #   truncates hyphens, replicaset hash and then deployment, so as to adhere 
+    #   to 63 character limit for pod.
+    #   [a-f0-9]{0,10}[a-z0-9]{5}$ checks for merged replicaset hash, pod hash
+    #   when there's no hyphens present between both hashes.
+    # 1 and 2 both won't work if deployment is > 57 chars.     
     #- label: pod
+    #  as: service_name
     #  name: service_name
-    #  matches: (.*)-[a-f0-9]{7,10}-[a-z0-9]{5}
+    #  matches: (.*)-[a-f0-9]{10}-[a-z0-9]{5}$|(.*)-[a-f0-9]{0,10}[a-z0-9]{5}$
     - label: service
       name: service_name
     - label: namespace
