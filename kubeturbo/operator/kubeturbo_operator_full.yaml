@@ -165,7 +165,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.15.5
+        image: icr.io/cpopen/kubeturbo-operator:8.15.6
         livenessProbe:
           httpGet:
             path: /healthz
@@ -235,7 +235,7 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.15.5"
+    tag: "8.15.6"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # busyboxRepository: registry.access.redhat.com/ubi9/ubi-minimal

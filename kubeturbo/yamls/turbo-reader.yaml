@@ -65,3 +65,14 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - kubevirt.io
+    resources:
+      - virtualmachineinstances
+      - virtualmachines
+      - virtualmachineinstancepresets
+      - virtualmachineinstancereplicasets
+    verbs:
+      - get
+      - list
+      - watch

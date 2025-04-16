@@ -122,3 +122,18 @@ rules:
       - create
       - delete
       - update
+  - apiGroups:
+      - kubevirt.io
+    resources:
+      - virtualmachineinstances
+      - virtualmachines
+      - virtualmachineinstancepresets
+      - virtualmachineinstancereplicasets
+    verbs:
+      - get
+      - delete
+      - create
+      - update
+      - patch
+      - list
+      - watch

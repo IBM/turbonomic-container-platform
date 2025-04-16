@@ -159,6 +159,21 @@ rules:
       - create
       - delete
       - update
+  - apiGroups:
+      - kubevirt.io
+    resources:
+      - virtualmachineinstances
+      - virtualmachines
+      - virtualmachineinstancepresets
+      - virtualmachineinstancereplicasets
+    verbs:
+      - get
+      - delete
+      - create
+      - update
+      - patch
+      - list
+      - watch
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1    
@@ -230,7 +245,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.15.5",
+                "version": "8.15.6",
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
@@ -298,7 +313,7 @@ spec:
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.15.5
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.15.6
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
