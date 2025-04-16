@@ -203,6 +203,16 @@ spec:
                 default: Prometheus
                 description: Optional target name for registration
                 type: string
+              websocketConfig:
+                default:
+                  restartOnWriteTimeout: false
+                description: WebSocket configurations
+                properties:
+                  restartOnWriteTimeout:
+                    default: false
+                    description: Restart probe container on WebSocket write timeout
+                    type: boolean
+                type: object
             type: object
           status:
             description: Status defines the observed state of Prometurbo
@@ -415,7 +425,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: icr.io/cpopen/prometurbo-operator:8.15.5
+        image: icr.io/cpopen/prometurbo-operator:8.15.6
         livenessProbe:
           httpGet:
             path: /healthz
