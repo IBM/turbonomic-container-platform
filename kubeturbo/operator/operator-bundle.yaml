@@ -1309,25 +1309,6 @@ spec:
                       type: string
                     type: array
                 type: object
-              policySettings:
-                description: Optional policy settings to control action generation
-                  on sidecar containers. Changing this value does not require restart
-                  of Kubeturbo.
-                properties:
-                  containers:
-                    description: Policy setting entry for containers
-                    properties:
-                      sidecars:
-                        description: Policy setting entry for sidecar containers
-                        properties:
-                          disableActionGeneration:
-                            default: false
-                            description: Disable resize action generation for sidecar
-                              containers
-                            type: boolean
-                        type: object
-                    type: object
-                type: object
               replicaCount:
                 description: Kubeturbo replicaCount
                 format: int32
@@ -1683,7 +1664,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.16.1
+        image: icr.io/cpopen/kubeturbo-operator:8.15.6
         livenessProbe:
           httpGet:
             path: /healthz

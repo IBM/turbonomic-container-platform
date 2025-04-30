@@ -88,18 +88,13 @@ data:
       "daemonPodDetectors": {
           "namespaces": [],
           "podNamePatterns": []
-      },
-      "policySettings": {
-        "containers": {
-          "sidecars": {"disableActionGeneration": false}
-        }
       }
     }  
   turbo.config: |-
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.16.1",
+                "version": "8.15.6",
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
@@ -167,7 +162,7 @@ spec:
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.16.1
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.15.6
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
