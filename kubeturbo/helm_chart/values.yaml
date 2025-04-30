@@ -7,7 +7,7 @@ replicaCount: 1
 # Replace the image with desired version
 image:
   repository: icr.io/cpopen/turbonomic/kubeturbo
-  tag: 8.16.1
+  tag: 8.15.6
   pullPolicy: IfNotPresent
 #  busyboxRepository: busybox
 #  imagePullSecret: ""
@@ -169,16 +169,9 @@ resources: {}
 wiremock:
   enabled: false
   url: wiremock:8080
-
 # Discovery-related configurations
 # discovery:
 #   # time delay (in milliseconds) between transmissions of chunked discovery data
 #   chunkSendDelayMillis: 0
 #   # desired size (in number of DTOs) of discovery data chunks
 #   numObjectsPerChunk: 5000
-
-# policy override for sidecars to disable action generation
-policySettings:
-  containers:
-    sidecars:
-      disableActionGeneration: false
