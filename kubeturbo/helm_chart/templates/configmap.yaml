@@ -85,4 +85,8 @@ data:
         "numObjectsPerChunk": {{ default 5000 .Values.discovery.numObjectsPerChunk }}
       }
       {{- end }}
+      {{- if .Values.policySettings }}
+      ,
+      "policySettings": {{ .Values.policySettings | toJson }}
+      {{- end }}
     }
