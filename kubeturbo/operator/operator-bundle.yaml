@@ -1653,8 +1653,6 @@ spec:
       containers:
       - args:
         - --leader-elect
-        command:
-        - /manager
         env:
         - name: WATCH_NAMESPACE
           valueFrom:
@@ -1664,7 +1662,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.16.0
+        image: icr.io/cpopen/kubeturbo-operator:8.16.a
         livenessProbe:
           httpGet:
             path: /healthz

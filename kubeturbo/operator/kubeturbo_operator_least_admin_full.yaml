@@ -154,8 +154,6 @@ spec:
       containers:
       - args:
         - --leader-elect
-        command:
-        - /manager
         env:
         - name: WATCH_NAMESPACE
           valueFrom:
@@ -165,7 +163,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.16.0
+        image: icr.io/cpopen/kubeturbo-operator:8.16.a
         livenessProbe:
           httpGet:
             path: /healthz
@@ -235,7 +233,7 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.16.0"
+    tag: "8.16.a"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # busyboxRepository: registry.access.redhat.com/ubi9/ubi-minimal
