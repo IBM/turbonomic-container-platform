@@ -2,4 +2,4 @@ apiVersion: v1
 appVersion: "8.0"
 description: A Helm chart for Kubernetes
 name: kubeturbo
-version: 8.16.a
+version: 8.16-a
