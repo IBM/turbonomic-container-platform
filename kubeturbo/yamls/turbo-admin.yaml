@@ -126,6 +126,7 @@ rules:
       - kubevirt.io
     resources:
       - virtualmachineinstances
+      - virtualmachineinstancemigrations
       - virtualmachines
       - virtualmachineinstancepresets
       - virtualmachineinstancereplicasets
