@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/golang/glog"
-	dif "github.com/turbonomic/turbo-go-sdk/pkg/dataingestionframework/data"
+	dif "github.ibm.com/turbonomic/turbo-go-sdk/pkg/dataingestionframework/data"
 	"gopkg.in/yaml.v2"
 )
 
@@ -118,7 +118,7 @@ func init() {
 	if credentialsLocation == "" {
 		credentialsLocation = defaultCredentialsLocation
 	}
-	credentialsFile, err := ioutil.ReadFile(credentialsLocation)
+	credentialsFile, err := os.ReadFile(credentialsLocation)
 	if err != nil {
 		glog.Fatalf("Failed to read target info from file %v: %v", credentialsLocation, err)
 	}
@@ -151,7 +151,7 @@ func getTests() ([]Test, error) {
 		return nil, fmt.Errorf(
 			"http request GET %v failed with error %v", testsURL, err)
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to read response of http request GET %v: %v", testsURL, err)
@@ -177,7 +177,7 @@ func getMetrics(metricsUrl string) ([]Metrics, error) {
 		return nil, fmt.Errorf(
 			"http request GET %v failed with error %v", testsURL, err)
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to read response of http request GET %v: %v", testsURL, err)
