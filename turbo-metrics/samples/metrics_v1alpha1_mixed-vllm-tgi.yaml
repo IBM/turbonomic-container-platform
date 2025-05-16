@@ -1,12 +1,12 @@
-# Monitors Text Generation Inference Servers (TGIS).
+# Monitors either vLLM or TGI Servers.
 # Depending on your configuration, you might have to modify labels if you have customized them
 # from the defaults.
 apiVersion: metrics.turbonomic.io/v1alpha1
 kind: PrometheusQueryMapping
 metadata:
-  name: text-generation-inference
+  name: mixed-vllm-tgi
   labels:
-    mapping: text-generation-inference
+    mapping: mixed-vllm-tgi
 spec:
   entities:
   - type: application
@@ -77,68 +77,52 @@ spec:
     - type: transaction
       queries:
       - type: used
-        # The following query exhibits two patterns:
-        #   1) the "A >= B OR B OR C == 0" pattern that computes the max between A and B and, if neither is available,
-        #      we will take C if C is 0.
-        #   2) the "X OR Y + Z" pattern to compute the metric.  This is because X (tgi_request_total_tokens_sum) is only
-        #      available in the IBM variant of the TGI implementation, and not in the original HuggingFace one in which
-        #      only Y (tgi_request_input_length_sum) and Z (tgi_request_generated_tokens_sum) exist.  Their sum is X.
-        # We will now describe the "A >= B OR B OR C == 0" pattern in details.
-        # - "A" and "B" are the two moving averages of the total number of tokens.  In LLM servings, it's generally
-        #   regarded the total token count is a better measurement of the throughput than the total request count,
-        #   because token count per request varies a lot: imagine chat response which could be thousands of tokens vs.
-        #   classification which could just be a few tokens.  Taking the max of the two will help achieve fast scaling
-        #   up and slow/conservative scaling down.
-        # - "C" is the number of requests.  The "C" portion of the expression ensures proper handling of the
-        #   zero-transaction scenario in which case we'd want this query to return 0.  However, the "token count" metric
-        #   will not be 0; instead, it will be unavailable as there are no requests to count the tokens.  To address
-        #   this, we append the expression with "OR C == 0" portion, which will return 0 because the request count is 0.
-        #   Note: it is theoretically impossible that the request count is non-zero and the token count is unavailable.
-        # Now about the extension.
-        promql: rate(vllm:prompt_tokens_total{}[10m]) + rate(vllm:generation_tokens_total{}[10m]) > rate(vllm:prompt_tokens_total{}[1h]) + rate(vllm:generation_tokens_total{}[1h])
-          OR rate(vllm:prompt_tokens_total{}[1h]) + rate(vllm:generation_tokens_total{}[1h])
-          OR rate(tgi_request_total_tokens_sum{}[10m]) > rate(tgi_request_total_tokens_sum{}[1h])
-          OR rate(tgi_request_total_tokens_sum{}[1h])
-          OR rate(tgi_request_input_length_sum{}[10m]) + rate(tgi_request_generated_tokens_sum{}[10m]) > rate(tgi_request_input_length_sum{}[1h]) + rate(tgi_request_generated_tokens_sum{}[1h])
-          OR rate(tgi_request_input_length_sum{}[1h]) + rate(tgi_request_generated_tokens_sum{}[1h])
-          OR rate(vllm:request_success_total{}[1h]) == 0
-          OR rate(tgi_request_count{}[1h]) == 0
-        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
-        # promql: rate(tgi_request_total_tokens_sum{}[10m]) OR rate(tgi_request_input_length_sum{}[10m]) + rate(tgi_request_generated_tokens_sum{}[10m]) OR rate(tgi_request_count{}[10m]) == 0
+        # The following transaction query supports both vLLM and TGI metrics.
+        #
+        # The vLLM portion exhibits the "X + Y OR Z == 0" pattern.  "X + Y" is the total number of tokens, while "Z" is
+        # the number of successful requests which is used to ensures proper handling of the zero-transaction scenario
+        # in which case we'd want this query to return 0.  However, the "token count" metric will not be 0; instead, it
+        # will be unavailable as there are no requests to count the tokens.  To address this, we append the expression
+        # with the "OR Z == 0" tail, which will return 0 because the request count is 0.
+        # Note: it is theoretically impossible that the request count is non-zero and the token count is unavailable.
+        #
+        # The TGI portion exhibits the "A OR B + C OR D == 0" pattern.  A (tgi_request_total_tokens_sum) is only
+        # available in the IBM variant of the TGI implementation, and not in the original HuggingFace one in which only
+        # B (tgi_request_input_length_sum) and C (tgi_request_generated_tokens_sum) exist.  Their sum is A.
+        promql: rate(vllm:prompt_tokens_total{}[10m]) + rate(vllm:generation_tokens_total{}[10m])
+          OR rate(vllm:request_success_total{}[30m]) == 0
+          OR rate(tgi_request_total_tokens_sum{}[10m])
+          OR rate(tgi_request_input_length_sum{}[10m]) + rate(tgi_request_generated_tokens_sum{}[10m])
+          OR rate(tgi_request_count{}[30m]) == 0
     - type: queuingTime
       queries:
       - type: used
-        # A similar "A >= B OR B OR C == 0" as above to retrieve the queuing time, with a 0 value under the scenario of
-        # zero-transaction.  Also, converting the value to milliseconds.
-        promql: (rate(vllm:time_to_first_token_seconds_sum{}[10m]) / (rate(vllm:time_to_first_token_seconds_count{}[10m]) > 0) > rate(vllm:time_to_first_token_seconds_sum{}[1h]) / rate(vllm:time_to_first_token_seconds_count{}[1h])
-          OR rate(vllm:time_to_first_token_seconds_sum{}[1h]) / (rate(vllm:time_to_first_token_seconds_count{}[1h]) > 0)
-          OR rate(tgi_request_queue_duration_sum{}[10m]) / (rate(tgi_request_queue_duration_count{}[10m]) > 0) > rate(tgi_request_queue_duration_sum{}[1h]) / rate(tgi_request_queue_duration_count{}[1h])
-          OR rate(tgi_request_queue_duration_sum{}[1h]) / (rate(tgi_request_queue_duration_count{}[1h]) > 0)
-          OR rate(vllm:request_success_total{}[1h]) == 0
-          OR rate(tgi_request_count{}[1h]) == 0) * 1000
-        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
-        # promql: (rate(tgi_request_queue_duration_sum{}[10m]) / (rate(tgi_request_queue_duration_count{}[10m]) > 0) OR rate(tgi_request_count{}[1h]) == 0) * 1000
+        # The 99th-percentile of queuing time in milliseconds over the past 30 minutes, supporting both vLLM and TGI
+        # metrics as long as one of them is available.
+        # If there are zero observations over the 30 minutes, then the value 0 will be returned.
+        promql: 1000 * (sum by (container, instance, namespace, pod, model_name) (rate(vllm:request_success_total{}[30m]) == 0)
+          OR (histogram_quantile(0.99, sum by (le, container, instance, namespace, pod, model_name) (rate(vllm:request_queue_time_seconds_bucket{}[30m]))))
+          OR sum by (container, instance, namespace, pod, model_name) (rate(tgi_request_count{}[30m]) == 0)
+          OR (histogram_quantile(0.99, sum by (le, container, instance, namespace, pod, model_name) (rate(tgi_request_queue_duration_bucket{}[30m])))))
     - type: responseTime
       queries:
       - type: used
-        # Similarly taking the max of two (fast/slow) moving averages of the response time; converting to milliseconds.
-        # This query will return nothing (missing data) under the zero-transaction scenario, which we think is the
+        # The 99th-percentile of response time in milliseconds over the past 30 minutes, supporting both vLLM and TGI
+        # metrics as long as one of them is available.
+        # This query will return nothing (missing data) if there are zero observations, which we think is the
         # correct behavior because without any requests recorded we can't really measure the response time which is
         # certainly not zero.
-        promql: (rate(vllm:e2e_request_latency_seconds_sum{}[10m]) / (rate(vllm:e2e_request_latency_seconds_count{}[10m]) > 0) > rate(vllm:e2e_request_latency_seconds_sum{}[1h]) / (rate(vllm:e2e_request_latency_seconds_count{}[1h]) > 0)
-          OR rate(vllm:e2e_request_latency_seconds_sum{}[1h]) / (rate(vllm:e2e_request_latency_seconds_count{}[1h]) > 0)
-          OR rate(tgi_request_duration_sum{}[10m]) / (rate(tgi_request_duration_count{}[10m]) > 0) > rate(tgi_request_duration_sum{}[1h]) / (rate(tgi_request_duration_count{}[1h]) > 0)
-          OR rate(tgi_request_duration_sum{}[1h]) / (rate(tgi_request_duration_count{}[1h]) > 0)) * 1000
-        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
-        # promql: (rate(tgi_request_duration_sum{}[10m]) / (rate(tgi_request_duration_count{}[10m]) > 0)) * 1000
+        promql: 1000 * (histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket{}[30m]))
+          OR histogram_quantile(0.99, rate(tgi_request_duration_bucket{}[30m])))
     - type: serviceTime
       queries:
       - type: used
-        # This is just a "A >= B OR B" pattern for "serviceTime" which measures the TPOT (time-per-output-token).
-        # This query will return nothing (missing data) under the zero-transaction scenario, which we think is the
-        # correct behavior because without any requests recorded we can't really measure the service time which is
-        # certainly not zero.
-        # A note on the "method" filter below.  There are two types when coming to measuring inference duration:
+        # The 99th-percentile of "service"" time in milliseconds over the past 30 minutes.  "serviceTime" measures the
+        # TPOT (time-per-output-token).  The query below covers two favors of metrics: vLLM and TGI.
+        # This query will return nothing (missing data) when there are zero observations during the period, which we
+        # think is the correct behavior because without any requests recorded we can't really measure the service time
+        # which is certainly not zero.
+        # A note on the TGI "method" filter below.  There are two types when coming to measuring inference duration:
         # - One is "prefill" which measures the time to first (output) token (TTFT).  This value varies according to the
         #   input token length.
         # - The other is called "decode" or "next_token", which measures the TPOT that is relatively stable per model.
@@ -146,32 +130,15 @@ spec:
         # We use a negative filter below {method != "prefill"}, instead of {method = "next_token"}, to make the query
         # work for both variants of TGI.  The HuggingFace variant uses the term "decode", while the IBM variant uses
         # "next_token".  We could also use regex pattern: {{method =~ "next_token|decode"}}.
-        promql: (rate(vllm:time_per_output_token_seconds_sum{}[10m]) / (rate(vllm:time_per_output_token_seconds_count{}[10m]) > 0)
-          > rate(vllm:time_per_output_token_seconds_sum{}[1h]) / (rate(vllm:time_per_output_token_seconds_count{}[1h]) > 0)
-          OR rate(vllm:time_per_output_token_seconds_sum{}[1h]) / (rate(vllm:time_per_output_token_seconds_count{}[1h]) > 0)
-          OR rate(tgi_batch_inference_duration_sum{method != "prefill"}[10m]) / (rate(tgi_batch_inference_duration_count{method != "prefill"}[10m]) > 0)
-          > rate(tgi_batch_inference_duration_sum{method != "prefill"}[1h]) / (rate(tgi_batch_inference_duration_count{method != "prefill"}[1h]) > 0)
-          OR rate(tgi_batch_inference_duration_sum{method != "prefill"}[1h]) / (rate(tgi_batch_inference_duration_count{method != "prefill"}[1h]) > 0)) * 1000
-        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
-        # promql: (rate(tgi_batch_inference_duration_sum{method != "prefill"}[10m]) / (rate(tgi_batch_inference_duration_count{method != "prefill"}[10m]) > 0)) * 1000
+        promql: 1000 * (histogram_quantile(0.99, rate(vllm:time_per_output_token_seconds_bucket{}[30m]))
+          OR histogram_quantile(0.99, rate(tgi_batch_inference_duration_bucket{method != "prefill"}[30m])))
     - type: concurrentQueries
       queries:
       - type: used
-        # A similar "A >= B OR B OR C == 0" as above to retrieve the current batch size, with a 0 value under the
-        # scenario of zero-transaction.
-        promql: avg_over_time(vllm:num_requests_running{}[10m]) > avg_over_time(vllm:num_requests_running{}[1h])
-          OR avg_over_time(vllm:num_requests_running{}[1h])
-          OR avg_over_time(tgi_batch_current_size{}[10m]) > avg_over_time(tgi_batch_current_size{}[1h])
-          OR avg_over_time(tgi_batch_current_size{}[1h])
-          OR rate(vllm:request_success_total{}[1h]) == 0
-          OR rate(tgi_request_input_count{}[1h]) == 0
-        # If more desired so, replace the above with the following to simply retrieve one single 10-minute moving average.
-        # promql: avg_over_time(tgi_batch_current_size{}[10m]) OR rate(tgi_request_input_count{}[1h]) == 0
+        promql: avg_over_time(vllm:num_requests_running{}[10m]) OR avg_over_time(tgi_batch_current_size{}[10m])
+          OR rate(vllm:request_success_total{}[30m]) == 0 OR rate(tgi_request_input_count{}[30m]) == 0
     - type: llmCache
       queries:
       - type: used
-        # A similar "A >= B OR B OR C == 0" as above to retrieve the current batch size, with a 0 value under the
-        # scenario of zero-transaction.
-        promql: avg_over_time(vllm:gpu_cache_usage_perc{}[10m]) >
-          avg_over_time(vllm:gpu_cache_usage_perc{}[1h]) OR
-          avg_over_time(vllm:gpu_cache_usage_perc{}[1h])
+        # This only exists in vLLM not TGI.
+        promql: avg_over_time(vllm:gpu_cache_usage_perc{}[10m])

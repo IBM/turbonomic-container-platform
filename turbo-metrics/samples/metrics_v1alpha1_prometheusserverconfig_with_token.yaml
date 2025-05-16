@@ -23,4 +23,4 @@ spec:
         operator: In
         values:
         - nvidia-dcgm-exporter
-        - text-generation-inference
+        - mixed-vllm-tgi

@@ -179,6 +179,7 @@ spec:
                       - application
                       - databaseServer
                       - virtualMachine
+                      - service
                       - nvidiaGPU
                       - kepler
                       type: string

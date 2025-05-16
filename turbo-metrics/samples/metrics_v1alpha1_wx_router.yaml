@@ -1,0 +1,26 @@
+# This template can be adapted to monitor service-level metrics.
+# In this example, the query is for the watsonx router metrics such as global queuing time.
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusQueryMapping
+metadata:
+  name: wx-router
+  labels:
+    mapping: wx-router
+spec:
+  entities:
+  - type: service
+    attributes:
+    - label: model_id
+      name: service_name
+      isIdentifier: true
+    metrics:
+    - type: queuingTime
+      queries:
+      - type: used
+        # Watsonx router maintains two queues. Those without sla_value are in a different queue which don't use GPU.
+        promql: quantile_over_time(0.99, wx_router_in_queue_duration_msec{sla_value!=""}[30m])
+    - type: responseTime
+      # Same query to make the service-level queuing time part of the e2e response time.
+      queries:
+      - type: used
+        promql: quantile_over_time(0.99, wx_router_in_queue_duration_msec{sla_value!=""}[30m])
