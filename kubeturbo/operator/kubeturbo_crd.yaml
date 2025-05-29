@@ -1469,6 +1469,9 @@ spec:
               lastUpdatedTimestamp:
                 description: Timestamp of the last sync up
                 type: string
+              serverVersion:
+                description: Used server version if lower than operator version
+                type: string
             type: object
             x-kubernetes-preserve-unknown-fields: true
         required:
