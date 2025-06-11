@@ -34,7 +34,11 @@ DEFAULT_PROXY_SERVER=""
 DEFAULT_KUBETURBO_NAME="kubeturbo-release"
 DEFAULT_KUBETURBO_VERSION="8.13.1"
 DEFAULT_KUBETURBO_REGISTRY="icr.io/cpopen/turbonomic/kubeturbo"
+DEFAULT_REGISTRY_PREFIX="icr.io/cpopen"
+DEFAULT_KUBETURBO_IMG_REPO="turbonomic/kubeturbo"
+DEFAULT_PRIVATE_REGISTRY_SECRET_NAME="private-docker-registry-secret"
 DEFAULT_LOGGING_LEVEL=0
+DEFAULT_KUBESTATE_VERSION="v2.14.0"
 
 RETRY_INTERVAL=10 # in seconds
 MAX_RETRY=10
@@ -60,6 +64,8 @@ ENABLE_TSC=${ENABLE_TSC:-${DEFAULT_ENABLE_TSC}}
 PROXY_SERVER=${PROXY_SERVER:-${DEFAULT_PROXY_SERVER}}
 KUBETURBO_NAME=${KUBETURBO_NAME:-${DEFAULT_KUBETURBO_NAME}}
 KUBETURBO_VERSION=${KUBETURBO_VERSION:-${DEFAULT_KUBETURBO_VERSION}}
+KUBETURBO_OP_VERSION=${KUBETURBO_OP_VERSION:-""}
+KUBETURBO_IMG_REPO=${KUBETURBO_IMG_REPO:-${DEFAULT_KUBETURBO_IMG_REPO}}
 KUBETURBO_REGISTRY=${KUBETURBO_REGISTRY:-${DEFAULT_KUBETURBO_REGISTRY}}
 KUBETURBO_REGISTRY_USRNAME=${KUBETURBO_REGISTRY_USRNAME:-""}
 KUBETURBO_REGISTRY_PASSWRD=${KUBETURBO_REGISTRY_PASSWRD:-""}
@@ -78,6 +84,10 @@ CERT_TSC_OP_NAME="<EMPTY>"
 CERT_TSC_OP_RELEASE="<EMPTY>"
 CERT_TSC_OP_VERSION="<EMPTY>"
 K8S_CLUSTER_KINDS="<EMPTY>"
+PRIVATE_REGISTRY_ENABLED="false"
+PRIVATE_REGISTRY_PREFIX=""
+PRIVATE_REGISTRY_SECRET_NAME=""
+ACCEPT_FALLBACK=""
 
 ################## FUNCTIONS ##################
 # check if the current system supports all the commands needed to run the script
@@ -127,6 +137,21 @@ validate_args() {
         OAUTH_CLIENT_SECRET=$(password_secret_handler "${OAUTH_CLIENT_SECRET}")
         PROXY_SERVER=$(password_secret_handler "${PROXY_SERVER}")
     fi
+
+    # If cluster subtype is not provide then auto detect the current subtype
+    if [ -z "${TARGET_SUBTYPE}" ]; then
+        TARGET_SUBTYPE=$(auto_detect_cluster_type)
+    fi
+
+    # Extract registry prefix from given the Kubeturbo registry
+    PRIVATE_REGISTRY_PREFIX=$(echo "${KUBETURBO_REGISTRY}" | sed "s|\/${KUBETURBO_IMG_REPO}$||g")
+    
+    # Determine if the private registry is applied or not
+    if [ "${PRIVATE_REGISTRY_PREFIX}" != "${DEFAULT_REGISTRY_PREFIX}" ]; then
+        PRIVATE_REGISTRY_ENABLED="true"
+    else
+        PRIVATE_REGISTRY_ENABLED="false"
+    fi
 }
 
 usage() {
@@ -142,11 +167,6 @@ usage() {
 # confirm args that are passed into the script and get user's consent
 confirm_installation() {
     proxy_server_enabled=$([ -n "${PROXY_SERVER}" ] && echo 'true' || echo 'false')
-    if [ -n "${KUBETURBO_REGISTRY_USRNAME}" ] && [ -n "${KUBETURBO_REGISTRY_PASSWRD}" ]; then
-        private_registry_enabled="true"
-    else
-        private_registry_enabled="false"
-    fi
     echo "Here is the summary for the current installation:"
     echo ""
     printf "%-20s %-20s\n" "---------" "---------"
@@ -163,7 +183,8 @@ confirm_installation() {
     printf "%-20s %-20s\n" "Auto-Update" "${ENABLE_TSC}"
     printf "%-20s %-20s\n" "Auto-Logging" "${ENABLE_TSC}"
     printf "%-20s %-20s\n" "Proxy Server" "${proxy_server_enabled}"
-    printf "%-20s %-20s\n" "Private Registry" "${private_registry_enabled}"
+    printf "%-20s %-20s\n" "Private Registry" "${PRIVATE_REGISTRY_ENABLED}"
+    printf "%-20s %-20s\n" "Registry" "${PRIVATE_REGISTRY_PREFIX}"
     echo ""
     echo "Please confirm the above settings [Y/n]: " && read -r  continueInstallation
     [ "${continueInstallation}" = "n" ] || [ "${continueInstallation}" = "N" ] && echo "Please retry the script with correct settings!" && exit 1
@@ -321,13 +342,42 @@ setup_kubeturbo() {
     if [ "${ACTION}" = "delete" ]; then
         apply_kubeturbo_cr
         apply_kubeturbo_op
+        apply_private_registry_secret
     else
+        apply_private_registry_secret
         apply_kubeturbo_op
         apply_kubeturbo_cr
     fi
 
     echo "Successfully ${ACTION} Kubeturbo in ${OPERATOR_NS} namespace!"
     ${KUBECTL} -n "${OPERATOR_NS}" get role,rolebinding,sa,pod,deploy,cm -l 'app.kubernetes.io/created-by in (kubeturbo-deploy, kubeturbo-operator)'
+}
+
+# Create or delete private registry secret
+apply_private_registry_secret() {
+    if [ -n "${KUBETURBO_REGISTRY_USRNAME}" ] && [ -n "${KUBETURBO_REGISTRY_PASSWRD}" ]; then
+        action="${ACTION}"
+        unset config
+        if [ "${ACTION}" = "delete" ]; then
+            action="${ACTION}"
+            config="--ignore-not-found"
+        fi
+
+        # Extract registry (part before the first '/'), default to "docker.io"
+        docker_server=$(echo "${PRIVATE_REGISTRY_PREFIX}" | awk -F'/' '{print ($1 ~ /\./ ? $1 : "docker.io")}')
+
+        PRIVATE_REGISTRY_SECRET_NAME="${DEFAULT_PRIVATE_REGISTRY_SECRET_NAME}"
+        ${KUBECTL} create secret docker-registry "${PRIVATE_REGISTRY_SECRET_NAME}" \
+            --docker-username="${KUBETURBO_REGISTRY_USRNAME}" \
+            --docker-password="${KUBETURBO_REGISTRY_PASSWRD}" \
+            --docker-server="${docker_server}" \
+            --namespace="${OPERATOR_NS}" \
+            --dry-run="client" -o yaml | ${KUBECTL} "${action}" -f - ${config}
+        
+        if [ "${ACTION}" != "delete" ]; then
+            ${KUBECTL} -n "${OPERATOR_NS}" patch sa default --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
+        fi
+    fi
 }
 
 apply_kubeturbo_op() {
@@ -339,6 +389,11 @@ apply_kubeturbo_op() {
 }
 
 apply_kubeturbo_op_subscription() {
+    if ! handle_private_registry_fallback; then
+        apply_kubeturbo_op_yaml
+        return
+    fi
+
     select_cert_op_from_operatorhub "kubeturbo"
     CERT_KUBETURBO_OP_NAME="${CERT_OP_NAME}"
 
@@ -378,6 +433,29 @@ apply_kubeturbo_op_subscription() {
     wait_for_deployment "${OPERATOR_NS}" "kubeturbo-operator"
 }
 
+handle_private_registry_fallback() {
+    if [ "${PRIVATE_REGISTRY_ENABLED}" != "true" ]; then
+        return 0
+    fi
+
+    if [ -n "${ACCEPT_FALLBACK}" ]; then
+        return "${ACCEPT_FALLBACK}"
+    fi
+
+    echo "OpenShift clusters do not natively support installing OperatorHub operators with private registries."
+    echo "Would you like to proceed with the YAML approach (manual, no auto-updates)? [Y/n]: " && read -r choice
+
+    ACCEPT_FALLBACK=0
+    if [ "${choice}" = "n" ] || [ "${choice}" = "N" ]; then 
+        echo "Please proceed to mirror the OCP catalog for OperatorHub: https://www.ibm.com/docs/en/tarm/8.16.x?topic=requirements-container-image-repository"
+        echo "Press [Enter] to continue: " && read -r _
+    else
+        echo "Using YAML approach with private registry."
+        ACCEPT_FALLBACK=1
+    fi
+    return "${ACCEPT_FALLBACK}"
+}
+
 apply_kubeturbo_op_yaml() {
     operator_deploy_name="kubeturbo-operator"
     operator_service_account="kubeturbo-operator"
@@ -386,6 +464,24 @@ apply_kubeturbo_op_yaml() {
     operator_yaml_path="kubeturbo/operator/operator-bundle.yaml"
     kubeturbo_operator_release=$(match_github_release "IBM/turbonomic-container-platform" "${KUBETURBO_VERSION}")
     operator_yaml_bundle=$(curl "${source_github_repo}/${kubeturbo_operator_release}/${operator_yaml_path}" | sed "s/: turbo$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
+    
+    # Only apply operator version once user specified
+    if [ -n "${KUBETURBO_OP_VERSION}" ]; then
+        echo "Using the customized image tag for operator: ${KUBETURBO_OP_VERSION}"
+        current_image=$(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')
+        target_image=$(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}' | sed 's|:.*|:'"${KUBETURBO_OP_VERSION}"'|g')
+        operator_yaml_bundle=$(echo "${operator_yaml_bundle}" | sed 's|'"${current_image}"'|'"${target_image}"'|g')
+    fi
+
+    # Notify client to mirror which images 
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
+        echo "Ensure following image gets mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
+        echo "- $(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')"
+        echo "Please press [Enter] to proceed: " && read -r _
+
+        # Swap to use private registry if necessary
+        operator_yaml_bundle=$(echo "${operator_yaml_bundle}" | sed 's|image: '"${DEFAULT_REGISTRY_PREFIX}"'|image: '"${PRIVATE_REGISTRY_PREFIX}"'|g')
+    fi
 
     apply_operator_bundle "${operator_service_account}" "${operator_deploy_name}" "${operator_yaml_bundle}"
 }
@@ -424,20 +520,6 @@ apply_kubeturbo_cr() {
     fi
 
     echo "${ACTION} Kubeturbo CR ..."
-    private_docker_registry=""
-    if [ -n "${KUBETURBO_REGISTRY_USRNAME}" ] && [ -n "${KUBETURBO_REGISTRY_PASSWRD}" ]; then
-        # Extract registry (part before the first '/'), default to "docker.io"
-        docker_server=$(echo "${KUBETURBO_REGISTRY}" | awk -F'/' '{print ($1 ~ /\./ ? $1 : "docker.io")}')
-
-        private_docker_registry="private-docker-registry"
-        ${KUBECTL} create secret docker-registry "${private_docker_registry}" \
-            --docker-username="${KUBETURBO_REGISTRY_USRNAME}" \
-            --docker-password="${KUBETURBO_REGISTRY_PASSWRD}" \
-            --docker-server="${docker_server}" \
-            --namespace="${OPERATOR_NS}" \
-            --dry-run="client" -o yaml | ${KUBECTL} "${action}" -f - ${config}
-    fi
-
     if [ "${ACTION}" = "delete" ]; then
         # skip deletion if the CRD is not found
         if ! ${KUBECTL} api-resources | grep -qE "Kubeturbo"; then
@@ -451,6 +533,14 @@ apply_kubeturbo_cr() {
         echo "Warning: Kubeturbo CR(${KUBETURBO_NAME}) detected in the namespace(${OPERATOR_NS})!"
         echo "Please confirm to overwrite the current Kubeturbo CR [Y/n]: " && read -r overwriteCR
         [ "${overwriteCR}" = "n" ] || [ "${overwriteCR}" = "N" ] && echo "Installation aborted..." && exit 1
+    fi
+
+    # Notify client to mirror which images 
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
+        echo "Ensure following images get mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/${DEFAULT_KUBETURBO_IMG_REPO}:${KUBETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/cpufreqgetter:latest"
+        echo "Please press [Enter] to proceed: " && read -r _
     fi
 
     cat <<-EOF | ${KUBECTL} "${action}" -f - ${config}
@@ -468,9 +558,10 @@ apply_kubeturbo_cr() {
 	  targetConfig:
 	    targetName: "${TARGET_NAME}"
 	  image:
-	    repository: "${KUBETURBO_REGISTRY}"
+	    repository: "${PRIVATE_REGISTRY_PREFIX}/${KUBETURBO_IMG_REPO}" 
 	    tag: "${KUBETURBO_VERSION}"
-	    imagePullSecret: "${private_docker_registry}"
+	    imagePullSecret: "${PRIVATE_REGISTRY_SECRET_NAME}"
+	    cpufreqgetterRepository: "${PRIVATE_REGISTRY_PREFIX}/turbonomic/cpufreqgetter:latest" 
 	  roleName: "${KUBETURBO_ROLE}"
 	---
 	EOF
@@ -535,6 +626,11 @@ apply_tsc_op() {
 }
 
 apply_tsc_op_subscription() {
+    if ! handle_private_registry_fallback; then
+        apply_tsc_op_yaml
+        return
+    fi
+
     select_cert_op_from_operatorhub "t8c-tsc"
     CERT_TSC_OP_NAME="${CERT_OP_NAME}"
 
@@ -583,6 +679,17 @@ apply_tsc_op_yaml() {
     tsc_operator_release=$(match_github_release "IBM/t8c-client-operator" "${KUBETURBO_VERSION}")
     operator_yaml_bundle=$(curl "${source_github_repo}/${tsc_operator_release}/${operator_yaml_path}" | sed "s/: __NAMESPACE__$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
 
+    # Notify client to mirror which images 
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
+        echo "Ensure following image gets mirrored to your private registry. (${PRIVATE_REGISTRY_PREFIX}):"
+        echo "- $(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')"
+        echo "Please press [Enter] to proceed: " && read -r _
+   
+        # Swap to private registry
+        operator_yaml_bundle=$(echo "${operator_yaml_bundle}" | sed 's|image: '"${DEFAULT_REGISTRY_PREFIX}"'|image: '"${PRIVATE_REGISTRY_PREFIX}"'|g')
+    fi
+
+
     apply_operator_bundle "${operator_service_account}" "${operator_deploy_name}" "${operator_yaml_bundle}"
 }
 
@@ -602,6 +709,33 @@ apply_tsc_cr() {
         fi
     fi
 
+    registry=""
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ]; then
+        registry="registry: ${PRIVATE_REGISTRY_PREFIX}"
+    fi
+
+    imagePullSecrets=""
+    if [ -n "${PRIVATE_REGISTRY_SECRET_NAME}" ]; then
+        imagePullSecrets=$(cat <<-EOF
+		imagePullSecrets:
+	    - name: "${PRIVATE_REGISTRY_SECRET_NAME}"
+		EOF
+        )
+    fi
+
+     # Notify client to mirror which images 
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
+        echo "Ensure following images get mirrored to your private registry. (${PRIVATE_REGISTRY_PREFIX}):"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/kube-state-metrics:${DEFAULT_KUBESTATE_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/skupper-router:${KUBETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/skupper-config-sync:${KUBETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/rsyslog-courier:${KUBETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/skupper-service-controller:${KUBETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/skupper-site-controller:${KUBETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/tsc-site-resources:${KUBETURBO_VERSION}"
+        echo "Please press [Enter] to proceed: " && read -r _
+    fi
+
     tsc_client_name="turbonomicclient-release"
     cat <<-EOF | ${KUBECTL} "${action}" -f - ${config}
 	---
@@ -611,8 +745,13 @@ apply_tsc_cr() {
 	  name: "${tsc_client_name}"
 	  namespace: "${OPERATOR_NS}"
 	spec:
+	  kubeStateMetrics:
+	    image:
+	      tag: ${DEFAULT_KUBESTATE_VERSION}
 	  global:
 	    version: "${KUBETURBO_VERSION}"
+	    ${registry}
+	    ${imagePullSecrets}
 	---
 	apiVersion: clients.turbonomic.ibm.com/v1alpha1
 	kind: VersionManager
@@ -875,6 +1014,11 @@ apply_operator_bundle() {
         else
             # update the k8s object if exists
             ${KUBECTL} apply -f "${yaml_abs_path}"
+        fi
+
+        # patch operator services account with private registry pull secret 
+        if [ "${obj_kind}" = "ServiceAccount" ] && [ -n "${PRIVATE_REGISTRY_SECRET_NAME}" ]; then
+            ${KUBECTL} -n "${OPERATOR_NS}" patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
         fi
     done
     rm -rf "${tmp_dir}"
