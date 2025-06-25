@@ -35,7 +35,12 @@ DEFAULT_PROMETURBO_NAME="prometurbo-release"
 DEFAULT_PROMETURBO_VERSION="8.14.3"
 DEFAULT_PROMETURBO_REGISTRY="icr.io/cpopen/turbonomic/prometurbo"
 DEFAULT_TURBODIF_REGISTRY="icr.io/cpopen/turbonomic/turbodif"
+DEFAULT_REGISTRY_PREFIX="icr.io/cpopen"
+DEFAULT_PROMETURBO_IMG_REPO="turbonomic/prometurbo"
+DEFAULT_TURBODIF_IMG_REPO="turbonomic/turbodif"
+DEFAULT_PRIVATE_REGISTRY_SECRET_NAME="private-docker-registry-secret-prometurbo"
 DEFAULT_LOGGING_LEVEL=0
+DEFAULT_KUBESTATE_VERSION="v2.14.0"
 
 RETRY_INTERVAL=10 # in seconds
 MAX_RETRY=10
@@ -60,9 +65,13 @@ TARGET_ADDRESS=${TARGET_ADDRESS:-${DEFAULT_PROMETHEUS_ADDRESS}}
 PROMETURBO_ROLE=${PROMETURBO_ROLE:-${DEFAULT_ROLE}}
 ENABLE_TSC=${ENABLE_TSC:-${DEFAULT_ENABLE_TSC}}
 PROMETURBO_NAME=${PROMETURBO_NAME:-${DEFAULT_PROMETURBO_NAME}}
+PROMETURBO_OP_VERSION=${PROMETURBO_OP_VERSION:-""}
 PROMETURBO_VERSION=${PROMETURBO_VERSION:-${DEFAULT_PROMETURBO_VERSION}}
 PROMETURBO_REGISTRY=${PROMETURBO_REGISTRY:-${DEFAULT_PROMETURBO_REGISTRY}}
 TURBODIF_REGISTRY=${TURBODIF_REGISTRY:-${DEFAULT_TURBODIF_REGISTRY}}
+PRIVATE_REGISTRY_PREFIX=${PRIVATE_REGISTRY_PREFIX:-""}
+PRIVATE_REGISTRY_USRNAME=${PRIVATE_REGISTRY_USRNAME:-""}
+PRIVATE_REGISTRY_PASSWRD=${PRIVATE_REGISTRY_PASSWRD:-""}
 TARGET_SUBTYPE=${TARGET_SUBTYPE:-""}
 
 LOGGING_LEVEL=${LOGGING_LEVEL:-${DEFAULT_LOGGING_LEVEL}}
@@ -78,7 +87,9 @@ CERT_TSC_OP_NAME="<EMPTY>"
 CERT_TSC_OP_RELEASE="<EMPTY>"
 CERT_TSC_OP_VERSION="<EMPTY>"
 K8S_CLUSTER_KINDS="<EMPTY>"
-
+PRIVATE_REGISTRY_ENABLED="false"
+PRIVATE_REGISTRY_SECRET_NAME=""
+ACCEPT_FALLBACK=""
 
 ################## FUNCTIONS ##################
 # Function to check if the current system supports all the commands needed to run the script
@@ -138,6 +149,18 @@ validate_args() {
     # If the target subtype is not set, auto-detect the current cluster
     if [ -z "${TARGET_SUBTYPE}" ]; then
         TARGET_SUBTYPE=$(auto_detect_cluster_type)
+    fi
+
+    # Extract registry prefix from prometurbo registry if the private registry is not provided
+    if [ "${PRIVATE_REGISTRY_PREFIX}" = "" ]; then
+        PRIVATE_REGISTRY_PREFIX=$(echo "${PROMETURBO_REGISTRY}" | sed "s|\/${DEFAULT_PROMETURBO_IMG_REPO}$||g")
+    fi
+    
+    # Determine if the private registry is applied or not
+    if [ "${PRIVATE_REGISTRY_PREFIX}" != "${DEFAULT_REGISTRY_PREFIX}" ]; then
+        PRIVATE_REGISTRY_ENABLED="true"
+    else
+        PRIVATE_REGISTRY_ENABLED="false"
     fi
 }
 
@@ -201,6 +224,8 @@ confirm_installation() {
     printf "%-20s %-20s\n" "Version" "${PROMETURBO_VERSION}"
     printf "%-20s %-20s\n" "Auto-Update" "${ENABLE_TSC}"
     printf "%-20s %-20s\n" "Auto-Logging" "${ENABLE_TSC}"
+    printf "%-20s %-20s\n" "Private Registry" "${PRIVATE_REGISTRY_ENABLED}"
+    printf "%-20s %-20s\n" "Registry" "${PRIVATE_REGISTRY_PREFIX}"
     echo ""
     echo "Please confirm the above settings [Y/n]: " && read -r  continueInstallation
     [ "${continueInstallation}" = "n" ] || [ "${continueInstallation}" = "N" ] && echo "Please retry the script with correct settings!" && exit 1
@@ -339,13 +364,38 @@ setup_prometurbo() {
     if [ "${ACTION}" = "delete" ]; then
         createORupdate_prometurbo_cr
         createORupdate_prometurbo_operator
+        apply_private_registry_secret
     else
+        apply_private_registry_secret
         createORupdate_prometurbo_operator
         createORupdate_prometurbo_cr
     fi
 
     echo "Successfully ${ACTION} Prometurbo in ${OPERATOR_NS} namespace!"
     ${KUBECTL} -n "${OPERATOR_NS}" get sa,pod,deploy,cm
+}
+
+# Create or delete private registry secret
+apply_private_registry_secret() {
+    if [ -n "${PRIVATE_REGISTRY_USRNAME}" ] && [ -n "${PRIVATE_REGISTRY_PASSWRD}" ]; then
+        action="${ACTION}"
+        unset config
+        if [ "${ACTION}" = "delete" ]; then
+            action="${ACTION}"
+            config="--ignore-not-found"
+        fi
+
+        # Extract registry (part before the first '/'), default to "docker.io"
+        docker_server=$(echo "${PRIVATE_REGISTRY_PREFIX}" | awk -F'/' '{print ($1 ~ /\./ ? $1 : "docker.io")}')
+
+        PRIVATE_REGISTRY_SECRET_NAME="${DEFAULT_PRIVATE_REGISTRY_SECRET_NAME}"
+        ${KUBECTL} create secret docker-registry "${PRIVATE_REGISTRY_SECRET_NAME}" \
+            --docker-username="${PRIVATE_REGISTRY_USRNAME}" \
+            --docker-password="${PRIVATE_REGISTRY_PASSWRD}" \
+            --docker-server="${docker_server}" \
+            --namespace="${OPERATOR_NS}" \
+            --dry-run="client" -o yaml | ${KUBECTL} "${action}" -f - ${config}
+    fi
 }
 
 # Function to create turbonomic-credentials secret
@@ -397,6 +447,19 @@ createORupdate_prometurbo_cr() {
         fi
     fi
 
+    # Notify client to mirror which images 
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
+        echo "Ensure following images get mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/${DEFAULT_PROMETURBO_IMG_REPO}:${PROMETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/${DEFAULT_TURBODIF_IMG_REPO}:${PROMETURBO_VERSION}"
+        echo "Please press [Enter] to proceed: " && read -r _
+    fi
+
+    imagePullSecret=""
+    if [ -n "${PRIVATE_REGISTRY_SECRET_NAME}" ]; then
+        imagePullSecret="imagePullSecret: ${PRIVATE_REGISTRY_SECRET_NAME}"
+    fi
+
     # Get user's consent to overwrite the current Prometurbo CR in the target namespace
     is_cr_exists=$(${KUBECTL} -n "${OPERATOR_NS}" get Prometurbo "${PROMETURBO_NAME}" -o name --ignore-not-found)
     if [ -n "${is_cr_exists}" ] && [ "${action}" != "delete" ]; then
@@ -417,10 +480,11 @@ createORupdate_prometurbo_cr() {
 	    turboServer: "${TARGET_HOST}"
 	    version: "${PROMETURBO_VERSION}"
 	  image:
-	    prometurboRepository: "${PROMETURBO_REGISTRY}"
+	    prometurboRepository: "${PRIVATE_REGISTRY_PREFIX}/${DEFAULT_PROMETURBO_IMG_REPO}"
 	    prometurboTag: "${PROMETURBO_VERSION}"
-	    turbodifRepository: "${TURBODIF_REGISTRY}"
+	    turbodifRepository: "${PRIVATE_REGISTRY_PREFIX}/${DEFAULT_TURBODIF_IMG_REPO}"
 	    turbodifTag: "${PROMETURBO_VERSION}"
+	    ${imagePullSecret}
 	  roleName: "${PROMETURBO_ROLE}"
 	  targetName: "${TARGET_NAME}"
 	  targetAddress: "${TARGET_ADDRESS}"
@@ -440,6 +504,11 @@ createORupdate_prometurbo_operator() {
 
 # Function to create or update the prometurbo subscription
 createORupdate_prometurbo_subscription() {
+    if ! handle_private_registry_fallback; then
+        createORupdate_prometurbo_operator_via_yaml
+        return
+    fi
+
     # To ensure the operator is installed 
     createORupdate_operatorgroup "${OPERATOR_NS}"
 
@@ -481,6 +550,31 @@ createORupdate_prometurbo_subscription() {
     wait_for_deployment "${OPERATOR_NS}" "prometurbo-operator"
 }
 
+# Function to fallback OCP installation with private image repo to yaml installation 
+handle_private_registry_fallback() {
+    if [ "${PRIVATE_REGISTRY_ENABLED}" != "true" ]; then
+        return 0
+    fi
+
+    if [ -n "${ACCEPT_FALLBACK}" ]; then
+        return "${ACCEPT_FALLBACK}"
+    fi
+
+    echo "OpenShift clusters do not natively support installing OperatorHub operators with private registries."
+    echo "Would you like to proceed with the YAML approach (manual, no auto-updates)? [Y/n]: " && read -r choice
+
+    ACCEPT_FALLBACK=0
+    if [ "${choice}" = "n" ] || [ "${choice}" = "N" ]; then 
+        # TODO: update link
+        echo "Please proceed to mirror the OCP catalog for OperatorHub: https://www.ibm.com/docs/en/tarm/8.16.x?topic=requirements-prometurbo-image-repository"
+        echo "Press [Enter] to continue: " && read -r _
+    else
+        echo "Using YAML approach with private registry."
+        ACCEPT_FALLBACK=1
+    fi
+    return "${ACCEPT_FALLBACK}"
+}
+
 # Function to install Prometurbo operator via yaml bundle
 createORupdate_prometurbo_operator_via_yaml() {
     operator_deploy_name="prometurbo-operator"
@@ -500,6 +594,25 @@ createORupdate_prometurbo_operator_via_yaml() {
 	${operator_full}
 	EOF
     )
+
+     # Only apply operator version once user specified
+    if [ -n "${PROMETURBO_OP_VERSION}" ]; then
+        echo "Using the customized image tag for operator: ${PROMETURBO_OP_VERSION}"
+        current_image=$(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')
+        target_image=$(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}' | sed 's|:.*|:'"${PROMETURBO_OP_VERSION}"'|g')
+        operator_yaml_bundle=$(echo "${operator_yaml_bundle}" | sed 's|'"${current_image}"'|'"${target_image}"'|g')
+    fi
+
+    # Notify client to mirror which images 
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
+        echo "Ensure following image gets mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
+        echo "- $(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')"
+        echo "Please press [Enter] to proceed: " && read -r _
+
+        # Swap to use private registry if necessary
+        operator_yaml_bundle=$(echo "${operator_yaml_bundle}" | sed 's|image: '"${DEFAULT_REGISTRY_PREFIX}"'|image: '"${PRIVATE_REGISTRY_PREFIX}"'|g')
+    fi
+
     apply_operator_bundle "${operator_service_account}" "${operator_deploy_name}" "${operator_yaml_bundle}"
 }
 
@@ -563,6 +676,11 @@ apply_operator_bundle() {
         else
             # update the k8s object if exists
             ${KUBECTL} apply -f "${yaml_abs_path}"
+        fi
+
+        # patch operator services account with private registry pull secret 
+        if [ "${obj_kind}" = "ServiceAccount" ] && [ -n "${PRIVATE_REGISTRY_SECRET_NAME}" ]; then
+            ${KUBECTL} -n "${OPERATOR_NS}" patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
         fi
     done
     rm -rf "${tmp_dir}"
@@ -733,6 +851,11 @@ createORupdate_tsc_operator() {
 
 # Function to create or update the tsc subscription
 createORupdate_tsc_subscription() {
+    if ! handle_private_registry_fallback; then
+        createORupdate_tsc_operator_via_yaml
+        return
+    fi
+
     select_cert_op_from_operatorhub "t8c-tsc"
     CERT_TSC_OP_NAME="${CERT_OP_NAME}"
 
@@ -781,6 +904,16 @@ createORupdate_tsc_operator_via_yaml() {
     tsc_operator_release=$(match_github_release "IBM/t8c-client-operator" "${PROMETURBO_VERSION}")
     operator_yaml_bundle=$(curl "${source_github_repo}/${tsc_operator_release}/${operator_yaml_path}" | sed "s/: __NAMESPACE__$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
 
+    # Notify client to mirror which images 
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
+        echo "Ensure following image gets mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
+        echo "- $(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')"
+        echo "Please press [Enter] to proceed: " && read -r _
+
+        # Swap to use private registry if necessary
+        operator_yaml_bundle=$(echo "${operator_yaml_bundle}" | sed 's|image: '"${DEFAULT_REGISTRY_PREFIX}"'|image: '"${PRIVATE_REGISTRY_PREFIX}"'|g')
+    fi
+
     apply_operator_bundle "${operator_service_account}" "${operator_deploy_name}" "${operator_yaml_bundle}"
 }
 
@@ -792,12 +925,39 @@ createORupdate_tsc_cr() {
         config="--ignore-not-found"
     fi
 
+    registry=""
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ]; then
+        registry="registry: ${PRIVATE_REGISTRY_PREFIX}"
+    fi
+
+    imagePullSecrets=""
+    if [ -n "${PRIVATE_REGISTRY_SECRET_NAME}" ]; then
+        imagePullSecrets=$(cat <<-EOF
+		imagePullSecrets:
+	    - name: "${PRIVATE_REGISTRY_SECRET_NAME}"
+		EOF
+        )
+    fi
+
     echo "${action} TSC CR ..."
     if [ "${action}" = "delete" ]; then
         # skip deletion if the CRD is not found
         if ! ${KUBECTL} api-resources | grep -qE "TurbonomicClient|VersionManager"; then
             return
         fi
+    fi
+
+    # Notify client to mirror which images 
+    if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
+        echo "Ensure following images get mirrored to your private registry. (${PRIVATE_REGISTRY_PREFIX}):"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/kube-state-metrics:${DEFAULT_KUBESTATE_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/skupper-router:${PROMETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/skupper-config-sync:${PROMETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/rsyslog-courier:${PROMETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/skupper-service-controller:${PROMETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/skupper-site-controller:${PROMETURBO_VERSION}"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/tsc-site-resources:${PROMETURBO_VERSION}"
+        echo "Please press [Enter] to proceed: " && read -r _
     fi
 
     tsc_client_name="turbonomicclient-release"
@@ -809,8 +969,13 @@ createORupdate_tsc_cr() {
 	  name: "${tsc_client_name}"
 	  namespace: "${OPERATOR_NS}"
 	spec:
+	  kubeStateMetrics:
+	    image:
+	      tag: ${DEFAULT_KUBESTATE_VERSION}
 	  global:
 	    version: "${PROMETURBO_VERSION}"
+	    ${registry}
+	    ${imagePullSecrets}
 	---
 	apiVersion: clients.turbonomic.ibm.com/v1alpha1
 	kind: VersionManager
