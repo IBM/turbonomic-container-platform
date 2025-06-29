@@ -163,6 +163,9 @@ spec:
                             - concurrentQueries
                             - energy
                             - llmCache
+                            - pCpu
+                            - pMem
+                            - coreSpeed
                             type: string
                         required:
                         - queries
@@ -173,15 +176,18 @@ spec:
                     type:
                       description: |-
                         Type specifies the type of entity.
-                        This field is required and must be one of application, databaseServer, virtualMachine,
+                        This field is required and must be one of application, databaseServer, virtualMachine, physicalMachine
                         or nvidiaGPU.
                       enum:
                       - application
                       - databaseServer
                       - virtualMachine
+                      - physicalMachine
                       - service
                       - nvidiaGPU
                       - kepler
+                      - openStackVirtualMachine
+                      - openStackPhysicalMachine
                       type: string
                   required:
                   - attributes
