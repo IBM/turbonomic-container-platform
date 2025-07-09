@@ -135,6 +135,7 @@ spec:
                                   - used
                                   - capacity
                                   - peak
+                                  - usedInPercent
                                   type: string
                               required:
                               - promql
@@ -164,7 +165,7 @@ spec:
                             - energy
                             - llmCache
                             - pCpu
-                            - pMem
+                            - pMemory
                             - coreSpeed
                             type: string
                         required:
