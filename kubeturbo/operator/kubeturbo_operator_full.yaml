@@ -163,7 +163,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.16.4
+        image: icr.io/cpopen/kubeturbo-operator:8.16.5
         livenessProbe:
           httpGet:
             path: /healthz
@@ -233,10 +233,12 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.16.4"
+    tag: "8.16.5"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
-    # busyboxRepository: registry.access.redhat.com/ubi9/ubi-minimal
+    # cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
+    # For Kubeturbo version 8.16.5+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
+    # cpufreqgetterImageTag: "8.16.5"
 
   # Assigning Kubeturbo to node, see 
   # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 

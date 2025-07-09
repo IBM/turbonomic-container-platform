@@ -50,7 +50,7 @@ spec:
         runAsNonRoot: true
       containers:
       - name: kubeturbo
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.16.4
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.16.5
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
@@ -91,6 +91,8 @@ spec:
         #- --cpufreq-job-exclude-node-labels=kubernetes.io/key=value
         # The complete cpufreqgetter image uri used for fallback node cpu frequency getter job.
         #- --cpufreqgetter-image=icr.io/cpopen/turbonomic/cpufreqgetter
+        # The cpufreqgetter image tag, valid for Kubeturbo version 8.16.5+ and the valid options are the Turbo released version after 8.16.5 or using latest otherwise.
+        #- --cpufreqgetter-image-tag=latest
         # The name of the secret that stores the image pull credentials for cpufreqgetter image.
         #- --cpufreqgetter-image-pull-secret=<secret-name>
         # Uncomment to stitch using IP, or if using Openstack, Hyper-V/VMM

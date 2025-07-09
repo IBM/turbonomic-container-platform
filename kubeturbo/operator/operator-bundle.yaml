@@ -101,6 +101,10 @@ spec:
                     description: Identify if cleanup the resources created for scc
                       impersonation, default is true
                     type: boolean
+                  costEndpoint:
+                    description: The endpoint of cost service inside cluster. e.g.
+                      http://opencost.opencost:9003. Empty/Nil means auto-detect
+                    type: string
                   discoveryIntervalSec:
                     default: 600
                     description: The discovery interval in seconds
@@ -252,6 +256,7 @@ spec:
                 type: object
               image:
                 default:
+                  cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
                   pullPolicy: IfNotPresent
                   repository: icr.io/cpopen/turbonomic/kubeturbo
                 description: Kubeturbo image details for deployments outside of RH
@@ -261,7 +266,11 @@ spec:
                     description: Busybox repository. default is busybox. This is overridden
                       by cpufreqgetterRepository
                     type: string
+                  cpufreqgetterImageTag:
+                    description: Image tag for cpu frequency getter image.
+                    type: string
                   cpufreqgetterRepository:
+                    default: icr.io/cpopen/turbonomic/cpufreqgetter
                     description: Repository used to get node cpufrequency.
                     type: string
                   imagePullSecret:
@@ -1684,7 +1693,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.16.4
+        image: icr.io/cpopen/kubeturbo-operator:8.16.5
         livenessProbe:
           httpGet:
             path: /healthz

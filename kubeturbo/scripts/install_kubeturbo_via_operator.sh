@@ -535,12 +535,22 @@ apply_kubeturbo_cr() {
         [ "${overwriteCR}" = "n" ] || [ "${overwriteCR}" = "N" ] && echo "Installation aborted..." && exit 1
     fi
 
+    # Tag of the cpufreqgetter image starts to align with turbo version since 8.16.5,
+    # so we need to check if the image tag exist before print to the client.
+    # Will use the previous default tag (latest) if the current tag version is not found.
+    cpuFreqgetterTag=$(curl -s "https://icr.io/v2/cpopen/turbonomic/cpufreqgetter/tags/list" 2>/dev/null | grep -q -w "\"${KUBETURBO_VERSION}\"" && echo "${KUBETURBO_VERSION}" || echo "latest")
+
     # Notify client to mirror which images 
     if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
         echo "Ensure following images get mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
         echo "- ${DEFAULT_REGISTRY_PREFIX}/${DEFAULT_KUBETURBO_IMG_REPO}:${KUBETURBO_VERSION}"
-        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/cpufreqgetter:latest"
+        echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/cpufreqgetter:${cpuFreqgetterTag}"
         echo "Please press [Enter] to proceed: " && read -r _
+    fi
+
+    imagePullSecret=""
+    if [ -n "${PRIVATE_REGISTRY_SECRET_NAME}" ]; then
+        imagePullSecret="imagePullSecret: ${PRIVATE_REGISTRY_SECRET_NAME}"
     fi
 
     cat <<-EOF | ${KUBECTL} "${action}" -f - ${config}
@@ -560,8 +570,8 @@ apply_kubeturbo_cr() {
 	  image:
 	    repository: "${PRIVATE_REGISTRY_PREFIX}/${KUBETURBO_IMG_REPO}" 
 	    tag: "${KUBETURBO_VERSION}"
-	    imagePullSecret: "${PRIVATE_REGISTRY_SECRET_NAME}"
-	    cpufreqgetterRepository: "${PRIVATE_REGISTRY_PREFIX}/turbonomic/cpufreqgetter:latest" 
+	    ${imagePullSecret}
+	    cpufreqgetterRepository: "${PRIVATE_REGISTRY_PREFIX}/turbonomic/cpufreqgetter" 
 	  roleName: "${KUBETURBO_ROLE}"
 	---
 	EOF

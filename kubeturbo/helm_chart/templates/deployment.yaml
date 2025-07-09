@@ -94,6 +94,9 @@ spec:
           {{- if .Values.image.cpufreqgetterRepository }}
           - --cpufreqgetter-image={{ .Values.image.cpufreqgetterRepository }}
           {{- end }}
+          {{- if .Values.image.cpufreqgetterTag }}
+          - --cpufreqgetter-image-tag={{ .Values.image.cpufreqgetterTag }}
+          {{- end }}
           {{- if .Values.args.busyboxExcludeNodeLabels }}
           - --cpufreq-job-exclude-node-labels={{ .Values.args.busyboxExcludeNodeLabels }}
           {{- end }}
