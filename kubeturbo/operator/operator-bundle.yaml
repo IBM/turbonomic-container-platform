@@ -1693,7 +1693,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.16.6
+        image: icr.io/cpopen/kubeturbo-operator:8.17.0
         livenessProbe:
           httpGet:
             path: /healthz

@@ -7,12 +7,12 @@ replicaCount: 1
 # Replace the image with desired version
 image:
   repository: icr.io/cpopen/turbonomic/kubeturbo
-  tag: 8.16.6
+  tag: 8.17.0
   pullPolicy: IfNotPresent
 #  busyboxRepository: busybox
 #  imagePullSecret: ""
 #  cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-#  # cpufreqgetterTag is only valid for Kubeturbo version 8.16.6+, and valid options are the Turbo released version after 8.16.6 or latest otherwise.
+#  # cpufreqgetterTag is only valid for Kubeturbo version 8.17.0+, and valid options are the Turbo released version after 8.17.0 or latest otherwise.
 #  cpufreqgetterTag: latest
 
 annotations:
