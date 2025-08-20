@@ -36,8 +36,8 @@ rules:
       - clusterversions
     verbs:
       - get
-      - watch
       - list
+      - watch
   - apiGroups:
       - machine.openshift.io
     resources:
@@ -75,4 +75,14 @@ rules:
     verbs:
       - get
       - list
+      - watch
+  - apiGroups:
+      - charts.helm.k8s.io
+    resources:
+      - kubeturbos
+    verbs:
+      - get
+      - list
+      - patch
+      - update
       - watch

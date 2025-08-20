@@ -25,12 +25,12 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.17.0"
+    tag: "8.17.1"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-    # For Kubeturbo version 8.17.0+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
-    # cpufreqgetterImageTag: "8.17.0"
+    # For Kubeturbo version 8.17.1+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
+    # cpufreqgetterImageTag: "8.17.1"
 
   # Assigning Kubeturbo to node, see 
   # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 

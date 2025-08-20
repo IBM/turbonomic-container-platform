@@ -18,8 +18,8 @@ rules:
       - extensions
       - turbonomic.com
       - devops.turbonomic.io
-      - redis.redis.opstreelabs.in
       - charts.helm.k8s.io
+      - redis.redis.opstreelabs.in
     resources:
       - deployments
       - replicasets
@@ -30,14 +30,15 @@ rules:
       - resourcequotas
       - operatorresourcemappings
       - operatorresourcemappings/status
-      - redis
+      - kubeturbos
       - xls
+      - redis
     verbs:
       - get
       - list
-      - watch
-      - update
       - patch
+      - update
+      - watch
   - apiGroups:
       - ""
       - apps
