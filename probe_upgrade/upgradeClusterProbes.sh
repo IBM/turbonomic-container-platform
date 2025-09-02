@@ -20,7 +20,7 @@ UPGRADE_CMD=./darwin/arm64/upgradeProbe
 
 for clusterConfig in ${CLUSTER_CONFIGS}/*; do
     if [ -f "${clusterConfig}" ]; then
-        printf "Using cluster config '${clusterConfig}'\n"
+        printf "===> Using cluster config '${clusterConfig}'\n"
         for deployment in ${DEPLOYMENTS[@]}; do
             ${UPGRADE_CMD} -k8s-kubeconfig ${clusterConfig} -namespace ${NAMESPACE} -deployment ${deployment} -tag ${VERSION}
             echo
