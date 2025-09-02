@@ -6,21 +6,24 @@ set -o nounset
 # VERSION is the version to update to
 VERSION=8.17.2
 # folder where cluster configurations with admin privileges can be found
-clusterConfigsFolder=~/.kube
+CLUSTER_CONFIGS=~/.kube
 
 # Namespace where kubeturbo is deployed
-NAMESPACE=kubeturbo-namespace
+NAMESPACE=turbonomic
 
 # Name of kubeturbo deployment
-DEPLOYMENT=kubeturbo-release
+DEPLOYMENTS=(kubeturbo-release prometurbo-release)
 
 UPGRADE_CMD=./darwin/arm64/upgradeProbe
+#UPGRADE_CMD=./linux/amd64/upgradeProbe
 ##########################################################################################
 
-for clusterConfig in ${clusterConfigsFolder}/*; do
+for clusterConfig in ${CLUSTER_CONFIGS}/*; do
     if [ -f "${clusterConfig}" ]; then
         printf "Using cluster config '${clusterConfig}'\n"
-        ${UPGRADE_CMD} -k8s-kubeconfig ${clusterConfig} -namespace ${NAMESPACE} -deployment ${DEPLOYMENT} -tag ${VERSION}
-        echo
+        for deployment in ${DEPLOYMENTS[@]}; do
+            ${UPGRADE_CMD} -k8s-kubeconfig ${clusterConfig} -namespace ${NAMESPACE} -deployment ${deployment} -tag ${VERSION}
+            echo
+        done
     fi
 done
