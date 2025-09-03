@@ -86,3 +86,11 @@ rules:
       - patch
       - update
       - watch
+  - apiGroups:
+      - charts.helm.k8s.io
+    resources:
+      - xls
+    verbs:
+      - get
+      - list
+      - watch

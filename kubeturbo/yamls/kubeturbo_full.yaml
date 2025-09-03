@@ -99,7 +99,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.17.1",
+                "version": "8.17.2",
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
@@ -167,7 +167,7 @@ spec:
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.17.1
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.17.2
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
@@ -196,7 +196,7 @@ spec:
         #- --cpufreq-job-exclude-node-labels=kubernetes.io/key=value
         # The complete cpufreqgetter image uri used for fallback node cpu frequency getter job.
         #- --cpufreqgetter-image=icr.io/cpopen/turbonomic/cpufreqgetter
-        # The cpufreqgetter image tag, valid for Kubeturbo version 8.17.1+ and the valid options are the Turbo released version after 8.17.1 or using latest otherwise.
+        # The cpufreqgetter image tag, valid for Kubeturbo version 8.17.2+ and the valid options are the Turbo released version after 8.17.2 or using latest otherwise.
         #- --cpufreqgetter-image-tag=latest
         # The name of the secret that stores the image pull credentials for cpufreqgetter image.
         #- --cpufreqgetter-image-pull-secret=<secret-name>
