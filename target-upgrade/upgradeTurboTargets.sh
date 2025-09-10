@@ -5,7 +5,7 @@ set -euo pipefail
 #########################################
 # Edit host and credentials
 host='https://<TURBO-SERVER>'
-creds='username=<UNAME>&password=<PSWD>'
+creds='username=administrator&password=<PSWD>'
 #########################################
 
 acceptj="-H 'accept: application/json'"
