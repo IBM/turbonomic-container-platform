@@ -245,7 +245,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "108.16.0",
+                "version": "108.16.3",
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
@@ -313,7 +313,7 @@ spec:
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
-        image: icr.io/cpopen/turbonomic/kubeturbo:108.16.0
+        image: icr.io/cpopen/turbonomic/kubeturbo:108.16.3
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
