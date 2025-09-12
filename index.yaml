@@ -184,15 +184,6 @@ entries:
   kubeturbo-fips:
   - apiVersion: v1
     appVersion: "8.0"
-    created: "2025-09-12T09:58:52.801887-04:00"
-    description: A Helm chart for Turbonomic kubeturbo
-    digest: c305d331209b69dec29cefbbd54bda35d4776617ceffe07424853e69db09dba8
-    name: kubeturbo-fips
-    urls:
-    - https://ibm.github.io/turbonomic-container-platform/downloads/kubeturbo/kubeturbo-fips-108.16.3.tgz
-    version: 108.16.3
-  - apiVersion: v1
-    appVersion: "8.0"
     created: "2025-05-02T17:43:12.622582-04:00"
     description: A Helm chart for Turbonomic kubeturbo
     digest: de4039336c530fc08ab4ed15cbf212bb98e0c7b1e1cc4e1169f3af2bc1390dde
@@ -462,19 +453,6 @@ entries:
     - https://ibm.github.io/turbonomic-container-platform/downloads/prometurbo/prometurbo-8.14.4.tgz
     version: 8.14.4
   prometurbo-fips:
-  - apiVersion: v1
-    appVersion: "8.0"
-    created: "2025-09-12T10:12:08.504468-04:00"
-    description: A Helm chart for Turbonomic prometurbo metric server and data ingestion
-      framework probe
-    digest: 1c6fd5c21d2c1db1e10d73e27c2770ed59c47a197747572e6a3fa85c4c26b39a
-    name: prometurbo-fips
-    sources:
-    - https://github.com/turbonomic/prometurbo
-    - https://github.com/turbonomic/data-ingestion-framework
-    urls:
-    - https://ibm.github.io/turbonomic-container-platform/downloads/prometurbo/prometurbo-fips-108.16.3.tgz
-    version: 108.16.3
   - apiVersion: v1
     appVersion: "8.0"
     created: "2025-05-02T17:44:47.307667-04:00"
