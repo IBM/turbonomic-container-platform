@@ -184,9 +184,9 @@ entries:
   kubeturbo-fips:
   - apiVersion: v1
     appVersion: "8.0"
-    created: "2025-09-12T09:23:34.518913-04:00"
+    created: "2025-09-12T09:58:52.801887-04:00"
     description: A Helm chart for Turbonomic kubeturbo
-    digest: 0eac278e6eb6a9b94bc6878caa1fba039a8455a9e9d64f475f7e543e9d0a8358
+    digest: c305d331209b69dec29cefbbd54bda35d4776617ceffe07424853e69db09dba8
     name: kubeturbo-fips
     urls:
     - https://ibm.github.io/turbonomic-container-platform/downloads/kubeturbo/kubeturbo-fips-108.16.3.tgz
@@ -487,4 +487,4 @@ entries:
     urls:
     - https://ibm.github.io/turbonomic-container-platform/downloads/data-ingestion-framework/turbodif-8.14.5.tgz
     version: 8.14.5
-generated: "2025-09-12T09:51:25.99531-04:00"
+generated: "2025-09-12T09:58:52.80091-04:00"
