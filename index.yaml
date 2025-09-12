@@ -193,14 +193,27 @@ entries:
   kubeturbo-fips:
   - apiVersion: v1
     appVersion: "8.0"
-    created: "2025-09-12T09:23:34.518913-04:00"
+    created: "2025-09-12T09:51:25.996191-04:00"
     description: A Helm chart for Turbonomic kubeturbo
-    digest: 0eac278e6eb6a9b94bc6878caa1fba039a8455a9e9d64f475f7e543e9d0a8358
+    digest: eb0e42c6e0ddb293191baf0c8b1535d77139e1bf95a682b4fb07a10a5c5efbcc
     name: kubeturbo-fips
     urls:
     - https://ibm.github.io/turbonomic-container-platform/downloads/kubeturbo/kubeturbo-fips-108.16.3.tgz
     version: 108.16.3
   prometurbo:
+  - apiVersion: v1
+    appVersion: "8.0"
+    created: "2025-05-02T17:44:47.307667-04:00"
+    description: A Helm chart for Turbonomic prometurbo metric server and data ingestion
+      framework probe
+    digest: c065b6f1fef103ae0b408828e2026e3e733280ea2a011eb06c47932d06317c1c
+    name: prometurbo
+    sources:
+    - https://github.com/turbonomic/prometurbo
+    - https://github.com/turbonomic/data-ingestion-framework
+    urls:
+    - https://ibm.github.io/turbonomic-container-platform/downloads/prometurbo/prometurbo-fips-108.16.0.tgz
+    version: 108.16.0
   - apiVersion: v1
     appVersion: "8.0"
     created: "2025-09-03T13:33:32.121394756-04:00"
@@ -461,20 +474,6 @@ entries:
     urls:
     - https://ibm.github.io/turbonomic-container-platform/downloads/prometurbo/prometurbo-8.14.4.tgz
     version: 8.14.4
-  prometurbo-fips:
-  - apiVersion: v1
-    appVersion: "8.0"
-    created: "2025-05-02T17:44:47.307667-04:00"
-    description: A Helm chart for Turbonomic prometurbo metric server and data ingestion
-      framework probe
-    digest: c065b6f1fef103ae0b408828e2026e3e733280ea2a011eb06c47932d06317c1c
-    name: prometurbo
-    sources:
-    - https://github.com/turbonomic/prometurbo
-    - https://github.com/turbonomic/data-ingestion-framework
-    urls:
-    - https://ibm.github.io/turbonomic-container-platform/downloads/prometurbo/prometurbo-fips-108.16.0.tgz
-    version: 108.16.0
   turbodif:
   - apiVersion: v1
     appVersion: "8.0"
@@ -487,4 +486,4 @@ entries:
     urls:
     - https://ibm.github.io/turbonomic-container-platform/downloads/data-ingestion-framework/turbodif-8.14.5.tgz
     version: 8.14.5
-generated: "2025-09-12T09:23:34.518063-04:00"
+generated: "2025-09-12T09:51:25.99531-04:00"
