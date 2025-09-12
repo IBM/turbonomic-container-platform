@@ -189,7 +189,7 @@ entries:
     digest: de4039336c530fc08ab4ed15cbf212bb98e0c7b1e1cc4e1169f3af2bc1390dde
     name: kubeturbo
     urls:
-    - https://ibm.github.io/turbonomic-container-platform/downloads/kubeturbo-fips/kubeturbo-108.16.0.tgz
+    - https://ibm.github.io/turbonomic-container-platform/downloads/kubeturbo/kubeturbo-fips-108.16.0.tgz
     version: 108.16.0
   prometurbo:
   - apiVersion: v1
@@ -464,7 +464,7 @@ entries:
     - https://github.com/turbonomic/prometurbo
     - https://github.com/turbonomic/data-ingestion-framework
     urls:
-    - https://ibm.github.io/turbonomic-container-platform/downloads/prometurbo-fips/prometurbo-108.16.0.tgz
+    - https://ibm.github.io/turbonomic-container-platform/downloads/prometurbo/prometurbo-fips-108.16.0.tgz
     version: 108.16.0
   turbodif:
   - apiVersion: v1
