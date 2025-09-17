@@ -21,13 +21,13 @@ spec:
   # Version tag of each container that the Prometurbo pod will use
   # If the version is not provided, the operator will match the version with the tagged operator version
   image:
-    prometurboTag: 8.17.2
-    turbodifTag: 8.17.2
+    prometurboTag: 8.17.3
+    turbodifTag: 8.17.3
 
   # Turbo server version and address
   # If the version is not provided, the operator will match the version with the tagged operator version
   serverMeta:
-    version: 8.17.2
+    version: 8.17.3
     turboServer: https://<Turbo_server_URL>
 
   # Turbo server api user and password stored in a secret or optionally specified as username and password
