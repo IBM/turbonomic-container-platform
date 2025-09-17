@@ -110,7 +110,7 @@ rules:
   resources:
   - pods/resize
   verbs:
-  - update
+  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -169,7 +169,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.17.2
+        image: icr.io/cpopen/kubeturbo-operator:8.17.3
         livenessProbe:
           httpGet:
             path: /healthz
@@ -239,12 +239,12 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.17.2"
+    tag: "8.17.3"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-    # For Kubeturbo version 8.17.2+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
-    # cpufreqgetterImageTag: "8.17.2"
+    # For Kubeturbo version 8.17.3+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
+    # cpufreqgetterImageTag: "8.17.3"
 
   # Assigning Kubeturbo to node, see 
   # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 

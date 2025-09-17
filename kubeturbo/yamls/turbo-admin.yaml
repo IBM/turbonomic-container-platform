@@ -16,7 +16,6 @@ rules:
       - apps
       - apps.openshift.io
       - extensions
-      - turbonomic.com
       - devops.turbonomic.io
       - charts.helm.k8s.io
       - redis.redis.opstreelabs.in
@@ -141,4 +140,4 @@ rules:
       - watch
   - apiGroups: [""]
     resources: ["pods/resize"]
-    verbs: ["update"]
+    verbs: ["patch"]

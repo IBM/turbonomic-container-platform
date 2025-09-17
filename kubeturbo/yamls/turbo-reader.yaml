@@ -10,7 +10,6 @@ rules:
       - apps.openshift.io
       - batch
       - extensions
-      - turbonomic.com
       - devops.turbonomic.io
       - config.openshift.io
     resources:
