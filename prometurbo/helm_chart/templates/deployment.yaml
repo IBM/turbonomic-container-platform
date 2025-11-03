@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "prometurbo.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: {{ include "prometurbo.name" . }}
     helm.sh/chart: {{ include "prometurbo.chart" . }}

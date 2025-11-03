@@ -30,13 +30,9 @@ metadata:
 rules:
   - apiGroups:
       - ""
-      - apps
     resources:
       - services
       - secrets
-      - pods
-      - deployments
-      - replicasets
     verbs:
       - get
       - list
@@ -75,6 +71,46 @@ roleRef:
   # For OpenShift v3.4 remove apiGroup line
   apiGroup: rbac.authorization.k8s.io
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometurbo-role
+  namespace: turbo
+rules:
+- apiGroups: 
+    - ""
+    - apps
+  resources: 
+    - pods
+    - replicasets
+  verbs: 
+    - get
+    - list
+    - watch
+- apiGroups: 
+    - apps
+  resources: 
+    - deployments
+  verbs: 
+    - get
+    - list
+    - patch
+    - update
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometurbo-rolebinding
+  namespace: turbo
+subjects:
+- kind: ServiceAccount
+  name: prometurbo
+roleRef:
+  kind: Role
+  name: prometurbo-role
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -99,7 +135,7 @@ spec:
       containers:
         - name: prometurbo
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/prometurbo:8.17.5
+          image: icr.io/cpopen/turbonomic/prometurbo:8.17.6
           imagePullPolicy: IfNotPresent
           args:
             - --v=2
@@ -120,7 +156,7 @@ spec:
                 - ALL
         - name: turbodif
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/turbodif:8.17.5
+          image: icr.io/cpopen/turbonomic/turbodif:8.17.6
           imagePullPolicy: IfNotPresent
           env:
             # Do not change the following environment variable
@@ -172,7 +208,7 @@ data:
     {
       "communicationConfig": {
         "serverMeta": {
-          "version": "8.17.5",
+          "version": "8.17.6",
           "turboServer": "https://<Turbo_server_URL>"
         },
         "restAPIConfig": {
