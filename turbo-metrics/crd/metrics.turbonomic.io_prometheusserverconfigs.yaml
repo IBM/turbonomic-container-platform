@@ -174,7 +174,6 @@ spec:
                 type: array
             required:
             - address
-            - bearerToken
             type: object
           status:
             description: PrometheusServerConfigStatus defines the observed state of

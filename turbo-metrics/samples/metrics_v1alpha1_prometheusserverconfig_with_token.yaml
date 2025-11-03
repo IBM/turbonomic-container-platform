@@ -2,19 +2,20 @@ apiVersion: metrics.turbonomic.io/v1alpha1
 kind: PrometheusServerConfig
 metadata:
   name: prometheusserverconfig-thanos
-  # Create in the same namespace as the PrometheusQueryMapping
+  # Create in the same namespace as the PrometheusQueryMapping and Prometurbo deployment
 spec:
   # service address <service-name>.<namespace>.svc.cluster.local:<service-port>
   address: https://thanos-querier.openshift-monitoring.svc:9091
   bearerToken:
-    # Get the token from the secret prometheus-k8s-token-##### in namespace openshift-monitoring
+    # Create the secret with a long lasting token in the namespace where prometurbo pod is running
+    # oc -n turbo create secret generic ocp-thanos-authorization-token --from-literal=authorizationToken=$(oc -n openshift-monitoring create token prometheus-k8s --duration=87600h)
     secretKeyRef:
       name: ocp-thanos-authorization-token
       key: authorizationToken
   clusters:
   - identifier:
       # Get the cluster id using
-      # kubectl -n default get svc kubernetes -ojsonpath='{.metadata.uid}'
+      # oc -n default get svc kubernetes -ojsonpath='{.metadata.uid}'
       clusterLabels: {}
       id: "---> Add the cluster id here <---"
     queryMappingSelector:
