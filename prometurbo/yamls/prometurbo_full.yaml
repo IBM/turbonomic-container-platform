@@ -135,7 +135,7 @@ spec:
       containers:
         - name: prometurbo
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/prometurbo:8.17.6
+          image: icr.io/cpopen/turbonomic/prometurbo:8.18.0
           imagePullPolicy: IfNotPresent
           args:
             - --v=2
@@ -156,7 +156,7 @@ spec:
                 - ALL
         - name: turbodif
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/turbodif:8.17.6
+          image: icr.io/cpopen/turbonomic/turbodif:8.18.0
           imagePullPolicy: IfNotPresent
           env:
             # Do not change the following environment variable
@@ -208,7 +208,7 @@ data:
     {
       "communicationConfig": {
         "serverMeta": {
-          "version": "8.17.6",
+          "version": "8.18.0",
           "turboServer": "https://<Turbo_server_URL>"
         },
         "restAPIConfig": {
