@@ -185,7 +185,7 @@ spec:
                 type: string
               targetAddress:
                 default: http://127.0.0.1:8081/metrics
-                description: Optional target address for registration
+                description: Optional Prometurbo metrics endpoint
                 type: string
               targetName:
                 default: Prometheus

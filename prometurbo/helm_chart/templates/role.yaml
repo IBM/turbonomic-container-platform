@@ -11,14 +11,17 @@ rules:
   resources: 
     - pods
     - replicasets
+    - secrets
   verbs: 
     - get
     - list
-    - watch
 - apiGroups: 
     - apps
+    - metrics.turbonomic.io
   resources: 
     - deployments
+    - prometheusquerymappings
+    - prometheusserverconfigs
   verbs: 
     - get
     - list
