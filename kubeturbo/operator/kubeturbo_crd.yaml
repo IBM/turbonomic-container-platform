@@ -1289,6 +1289,25 @@ spec:
                     description: minimum number of nodes allowed in the node pool
                     type: integer
                 type: object
+              oomEventHandler:
+                default:
+                  enableEventWrites: false
+                  enableRecoveryActions: false
+                description: OOMEventHandler defines settings for the OOM event handler
+                  framework.
+                properties:
+                  enableEventWrites:
+                    default: false
+                    description: |-
+                      When true, Kubeturbo writes all captured OOM and memory-pressure events
+                      to a local file in the container for visualization.
+                    type: boolean
+                  enableRecoveryActions:
+                    default: false
+                    description: When true, Kubeturbo generates synthetic recovery
+                      actions for OOM events.
+                    type: boolean
+                type: object
               ormOwners:
                 description: Cluster Role rules for ORM owners. It's required when
                   using ORM with ClusterRole 'turbo-cluster-admin'. It's recommended

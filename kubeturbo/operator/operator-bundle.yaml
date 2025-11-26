@@ -1302,6 +1302,25 @@ spec:
                     description: minimum number of nodes allowed in the node pool
                     type: integer
                 type: object
+              oomEventHandler:
+                default:
+                  enableEventWrites: false
+                  enableRecoveryActions: false
+                description: OOMEventHandler defines settings for the OOM event handler
+                  framework.
+                properties:
+                  enableEventWrites:
+                    default: false
+                    description: |-
+                      When true, Kubeturbo writes all captured OOM and memory-pressure events
+                      to a local file in the container for visualization.
+                    type: boolean
+                  enableRecoveryActions:
+                    default: false
+                    description: When true, Kubeturbo generates synthetic recovery
+                      actions for OOM events.
+                    type: boolean
+                type: object
               ormOwners:
                 description: Cluster Role rules for ORM owners. It's required when
                   using ORM with ClusterRole 'turbo-cluster-admin'. It's recommended
@@ -1594,6 +1613,7 @@ rules:
   - resourcequotas
   - services
   - statefulsets
+  - controllerrevisions
   verbs:
   - get
   - list
@@ -1643,6 +1663,12 @@ rules:
   - pods/resize
   verbs:
   - patch
+- apiGroups:
+  - policy
+  resources:
+  - pods/eviction
+  verbs:
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -1701,7 +1727,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.18.0
+        image: icr.io/cpopen/kubeturbo-operator:8.18.1
         livenessProbe:
           httpGet:
             path: /healthz

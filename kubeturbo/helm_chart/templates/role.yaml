@@ -1,0 +1,46 @@
+{{-  if not (eq .Values.roleName "cluster-admin") }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.serviceAccountName }}-role-{{ .Release.Namespace }}
+  namespace: {{ .Release.Namespace }}
+rules:
+{{- if .Values.image.imagePullSecret }}
+  - apiGroups: 
+      - ""
+    resources: 
+      - secrets
+    resourceNames: 
+      - {{ .Values.image.imagePullSecret }}
+    verbs: 
+      - get
+      - list
+{{- end }} 
+  - apiGroups: 
+      - apps
+    resources: 
+      - deployments
+    resourceNames: 
+      - {{ include "kubeturbo.fullname" . }}
+    verbs: 
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.serviceAccountName }}-rolebinding-{{ .Release.Namespace }}
+  namespace: {{ .Release.Namespace }}
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.serviceAccountName }}
+roleRef:
+  kind: Role
+  name: {{ .Values.serviceAccountName }}-role-{{ .Release.Namespace }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

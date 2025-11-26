@@ -121,10 +121,6 @@ validate_args() {
         echo "ERROR: Missing target host" >&2; usage; exit 1
     fi
 
-    if [ -n "${KUBECONFIG}" ]; then
-        KUBECTL="${KUBECTL} --kubeconfig=${KUBECONFIG}"
-    fi
-
     # Prioritize the TSC deployment approach once the value is set
     if [ "${ENABLE_TSC}" = "optional" ]; then
         if [ -n "${TSC_TOKEN}" ] || [ -n "${TSC_TOKEN_FILE}" ]; then ENABLE_TSC="true"; fi
@@ -164,6 +160,15 @@ usage() {
    echo
 }
 
+# wraps up kubectl cmd to ensure spaces in path can be handle safely
+run_kubectl() {
+    if [ -n "${KUBECONFIG:-}" ]; then
+        "${KUBECTL}" --kubeconfig="${KUBECONFIG}" "$@"
+    else
+        "${KUBECTL}" "$@"
+    fi
+}
+
 # confirm args that are passed into the script and get user's consent
 confirm_installation() {
     proxy_server_enabled=$([ -n "${PROXY_SERVER}" ] && echo 'true' || echo 'false')
@@ -200,7 +205,7 @@ cluster_type_check() {
         return
     fi
     
-    current_context=$(${KUBECTL} config current-context)
+    current_context=$(run_kubectl config current-context)
     current_oc_cluster_type=$(auto_detect_cluster_type)
     TARGET_SUBTYPE=$(normalize_target_cluster_type "${TARGET_SUBTYPE}")
     if [ "${current_oc_cluster_type}" != "${TARGET_SUBTYPE}" ]; then 
@@ -225,15 +230,15 @@ confirm_installation_cluster() {
 # display current kubeconfig context in a table format
 show_current_kube_context() {
     # exit if the current context is not set
-    if ! current_context=$(${KUBECTL} config current-context); then
+    if ! current_context=$(run_kubectl config current-context); then
         echo "ERROR: Current context is not set in your cluster!"
         exit 1
     fi
 
     # get detail from the raw oject
-    cluster=$(${KUBECTL} config view -o jsonpath='{.contexts[?(@.name == "'"${current_context}"'")].context.cluster}')
-    user=$(${KUBECTL} config view -o jsonpath='{.contexts[?(@.name == "'"${current_context}"'")].context.user}')
-    namespace=$(${KUBECTL} config view -o jsonpath='{.contexts[?(@.name == "'"${current_context}"'")].context.namespace}')
+    cluster=$(run_kubectl config view -o jsonpath='{.contexts[?(@.name == "'"${current_context}"'")].context.cluster}')
+    user=$(run_kubectl config view -o jsonpath='{.contexts[?(@.name == "'"${current_context}"'")].context.user}')
+    namespace=$(run_kubectl config view -o jsonpath='{.contexts[?(@.name == "'"${current_context}"'")].context.namespace}')
 
     # print out in the table
     spacing=5
@@ -250,7 +255,7 @@ show_current_kube_context() {
     eval "printf '${format}' \"${current_context}\" \"${cluster}\" \"${user}\" \"${namespace}\""
 
     # exit if the current the cluster is not reachable
-    if ! ${KUBECTL} get nodes > /dev/null 2>&1; then
+    if ! run_kubectl get nodes > /dev/null 2>&1; then
         echo "ERROR: Context used by the current cluster is not reachable!"
         exit 1
     fi
@@ -258,7 +263,7 @@ show_current_kube_context() {
 
 # detech the cluster type
 auto_detect_cluster_type() {
-    is_current_oc_cluster=$(${KUBECTL} api-resources --api-group=route.openshift.io -o name)
+    is_current_oc_cluster=$(run_kubectl api-resources --api-group=route.openshift.io -o name)
     normalize_target_cluster_type "$([ -n "${is_current_oc_cluster}" ] && echo "${OCP_TYPE}")"
 }
 
@@ -271,12 +276,12 @@ normalize_target_cluster_type() {
 
 main() {
     # gather all cluster level resource kinds
-    K8S_CLUSTER_KINDS=$(${KUBECTL} api-resources --namespaced=false --no-headers | awk '{print $NF}')
+    K8S_CLUSTER_KINDS=$(run_kubectl api-resources --namespaced=false --no-headers | awk '{print $NF}')
 
-    NS_EXISTS=$(${KUBECTL} get ns --field-selector=metadata.name="${OPERATOR_NS}" -o name)
+    NS_EXISTS=$(run_kubectl get ns --field-selector=metadata.name="${OPERATOR_NS}" -o name)
     if [ -z "${NS_EXISTS}" ]; then
         echo "Creating ${OPERATOR_NS} namespace to deploy Kubeturbo operator"
-        ${KUBECTL} create ns "${OPERATOR_NS}" --dry-run=client -o yaml | ${KUBECTL} apply -f - 
+        run_kubectl create ns "${OPERATOR_NS}" --dry-run=client -o yaml | run_kubectl apply -f - 
     fi
     
     if [ "${ACTION}" != "delete" ] && [ "${ENABLE_TSC}" = "optional" ]; then
@@ -292,7 +297,7 @@ main() {
     setup_kubeturbo
 
     # applicable scenario: user switch from tsc approach to oauth2 approach 
-    is_tsc_launched=$(${KUBECTL} -n "${OPERATOR_NS}" get deploy --field-selector=metadata.name=t8c-client-operator-controller-manager -o name)
+    is_tsc_launched=$(run_kubectl -n "${OPERATOR_NS}" get deploy --field-selector=metadata.name=t8c-client-operator-controller-manager -o name)
     if [ -n "${is_tsc_launched}" ] && [ "${ENABLE_TSC}" = "false" ]; then
         echo "Info: Dismounting Auto-logging & Auto-updating feature as no longer required ..."
         ACTION="delete"
@@ -306,7 +311,7 @@ main() {
 
 apply_operator_group() {
     if [ "${TARGET_SUBTYPE}" != "${OCP_TYPE}" ]; then return; fi
-    op_gp_count=$(${KUBECTL} -n "${OPERATOR_NS}" get OperatorGroup -o name | wc -l)
+    op_gp_count=$(run_kubectl -n "${OPERATOR_NS}" get OperatorGroup -o name | wc -l)
     if [ "${op_gp_count}" -eq 1 ]; then 
         return
     elif [ "${op_gp_count}" -gt 1 ]; then 
@@ -320,7 +325,7 @@ apply_operator_group() {
         config="--ignore-not-found"
     fi
 
-    cat <<-EOF | ${KUBECTL} "${action}" -f - ${config}
+    cat <<-EOF | run_kubectl "${action}" -f - ${config}
 	---
 	apiVersion: operators.coreos.com/v1
 	kind: OperatorGroup
@@ -350,7 +355,7 @@ setup_kubeturbo() {
     fi
 
     echo "Successfully ${ACTION} Kubeturbo in ${OPERATOR_NS} namespace!"
-    ${KUBECTL} -n "${OPERATOR_NS}" get role,rolebinding,sa,pod,deploy,cm -l 'app.kubernetes.io/created-by in (kubeturbo-deploy, kubeturbo-operator)'
+    run_kubectl -n "${OPERATOR_NS}" get role,rolebinding,sa,pod,deploy,cm -l 'app.kubernetes.io/created-by in (kubeturbo-deploy, kubeturbo-operator)'
 }
 
 # Create or delete private registry secret
@@ -367,15 +372,15 @@ apply_private_registry_secret() {
         docker_server=$(echo "${PRIVATE_REGISTRY_PREFIX}" | awk -F'/' '{print ($1 ~ /\./ ? $1 : "docker.io")}')
 
         PRIVATE_REGISTRY_SECRET_NAME="${DEFAULT_PRIVATE_REGISTRY_SECRET_NAME}"
-        ${KUBECTL} create secret docker-registry "${PRIVATE_REGISTRY_SECRET_NAME}" \
+        run_kubectl create secret docker-registry "${PRIVATE_REGISTRY_SECRET_NAME}" \
             --docker-username="${KUBETURBO_REGISTRY_USRNAME}" \
             --docker-password="${KUBETURBO_REGISTRY_PASSWRD}" \
             --docker-server="${docker_server}" \
             --namespace="${OPERATOR_NS}" \
-            --dry-run="client" -o yaml | ${KUBECTL} "${action}" -f - ${config}
+            --dry-run="client" -o yaml | run_kubectl "${action}" -f - ${config}
         
         if [ "${ACTION}" != "delete" ]; then
-            ${KUBECTL} -n "${OPERATOR_NS}" patch sa default --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
+            run_kubectl -n "${OPERATOR_NS}" patch sa default --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
         fi
     fi
 }
@@ -410,11 +415,11 @@ apply_kubeturbo_op_subscription() {
 
     echo "${ACTION} Certified Kubeturbo operator subscription ..."
     if [ "${ACTION}" = "delete" ]; then
-        ${KUBECTL} -n "${OPERATOR_NS}" "${action}" Subscription "${CERT_KUBETURBO_OP_NAME}" ${config}
-        ${KUBECTL} -n "${OPERATOR_NS}" "${action}" csv "${CERT_KUBETURBO_OP_VERSION}" ${config}
+        run_kubectl -n "${OPERATOR_NS}" "${action}" Subscription "${CERT_KUBETURBO_OP_NAME}" ${config}
+        run_kubectl -n "${OPERATOR_NS}" "${action}" csv "${CERT_KUBETURBO_OP_VERSION}" ${config}
         return
     fi
-    cat <<-EOF | ${KUBECTL} "${action}" -f - ${config}
+    cat <<-EOF | run_kubectl "${action}" -f - ${config}
 	---
 	apiVersion: operators.coreos.com/v1alpha1
 	kind: Subscription
@@ -522,13 +527,13 @@ apply_kubeturbo_cr() {
     echo "${ACTION} Kubeturbo CR ..."
     if [ "${ACTION}" = "delete" ]; then
         # skip deletion if the CRD is not found
-        if ! ${KUBECTL} api-resources | grep -qE "Kubeturbo"; then
+        if ! run_kubectl api-resources | grep -qE "Kubeturbo"; then
             return
         fi
     fi
 
     # get user's consent to overwrite the current Kubeturbo CR in the target namespace
-    is_cr_exists=$(${KUBECTL} -n "${OPERATOR_NS}" get Kubeturbo --field-selector=metadata.name="${KUBETURBO_NAME}" -o name)
+    is_cr_exists=$(run_kubectl -n "${OPERATOR_NS}" get Kubeturbo --field-selector=metadata.name="${KUBETURBO_NAME}" -o name)
     if [ -n "${is_cr_exists}" ] && [ "${ACTION}" != "delete" ]; then
         echo "Warning: Kubeturbo CR(${KUBETURBO_NAME}) detected in the namespace(${OPERATOR_NS})!"
         echo "Please confirm to overwrite the current Kubeturbo CR [Y/n]: " && read -r overwriteCR
@@ -553,7 +558,7 @@ apply_kubeturbo_cr() {
         imagePullSecret="imagePullSecret: ${PRIVATE_REGISTRY_SECRET_NAME}"
     fi
 
-    cat <<-EOF | ${KUBECTL} "${action}" -f - ${config}
+    cat <<-EOF | run_kubectl "${action}" -f - ${config}
 	---
 	kind: Kubeturbo
 	apiVersion: charts.helm.k8s.io/v1
@@ -596,7 +601,7 @@ apply_oauth2_token() {
         config="--ignore-not-found"
     fi
 
-    cat <<-EOF | ${KUBECTL} "${action}" -f - ${config}
+    cat <<-EOF | run_kubectl "${action}" -f - ${config}
 	apiVersion: v1
 	kind: Secret
 	metadata:
@@ -617,14 +622,14 @@ setup_tsc() {
         apply_tsc_op
     else
         if [ "${ENABLE_TSC}" != "true" ]; then return; fi
-        ${KUBECTL} -n "${OPERATOR_NS}" delete secret turbonomic-credentials --ignore-not-found
+        run_kubectl -n "${OPERATOR_NS}" delete secret turbonomic-credentials --ignore-not-found
         apply_tsc_op
         apply_tsc_cr
         apply_skupper_tunnel
         wait_for_tsc_sync_up
     fi
     echo "Successfully ${ACTION} TSC operator in the ${OPERATOR_NS} namespace!"
-    ${KUBECTL} -n "${OPERATOR_NS}" get role,rolebinding,sa,pod,deploy -l 'app.kubernetes.io/created-by in (t8c-client-operator, turbonomic-t8c-client-operator)'
+    run_kubectl -n "${OPERATOR_NS}" get role,rolebinding,sa,pod,deploy -l 'app.kubernetes.io/created-by in (t8c-client-operator, turbonomic-t8c-client-operator)'
 }
 
 apply_tsc_op() {
@@ -657,11 +662,11 @@ apply_tsc_op_subscription() {
 
     echo "${ACTION} Certified t8c-tsc operator subscription ..."
     if [ "${ACTION}" = "delete" ]; then
-        ${KUBECTL} -n "${OPERATOR_NS}" "${action}" Subscription "${CERT_TSC_OP_NAME}" ${config}
-        ${KUBECTL} -n "${OPERATOR_NS}" "${action}" csv "${CERT_TSC_OP_VERSION}" ${config}
+        run_kubectl -n "${OPERATOR_NS}" "${action}" Subscription "${CERT_TSC_OP_NAME}" ${config}
+        run_kubectl -n "${OPERATOR_NS}" "${action}" csv "${CERT_TSC_OP_VERSION}" ${config}
         return
     fi
-    cat <<-EOF | ${KUBECTL} "${action}" -f - ${config}
+    cat <<-EOF | run_kubectl "${action}" -f - ${config}
 	---
 	apiVersion: operators.coreos.com/v1alpha1
 	kind: Subscription
@@ -714,7 +719,7 @@ apply_tsc_cr() {
     echo "${ACTION} TSC CR ..."
     if [ "${ACTION}" = "delete" ]; then
         # skip deletion if the CRD is not found
-        if ! ${KUBECTL} api-resources | grep -qE "TurbonomicClient|VersionManager"; then
+        if ! run_kubectl api-resources | grep -qE "TurbonomicClient|VersionManager"; then
             return
         fi
     fi
@@ -747,7 +752,7 @@ apply_tsc_cr() {
     fi
 
     tsc_client_name="turbonomicclient-release"
-    cat <<-EOF | ${KUBECTL} "${action}" -f - ${config}
+    cat <<-EOF | run_kubectl "${action}" -f - ${config}
 	---
 	kind: TurbonomicClient
 	apiVersion: clients.turbonomic.ibm.com/v1alpha1
@@ -775,7 +780,7 @@ apply_tsc_cr() {
     if [ "${ACTION}" != "delete" ]; then
         echo "Waiting for TSC client to be ready ..."
         wait_for_deployment "${OPERATOR_NS}" "tsc-site-resources"
-        sleep 20 && ${KUBECTL} wait pod \
+        sleep 20 && run_kubectl wait pod \
             -n "${OPERATOR_NS}" \
             -l "app.kubernetes.io/part-of=${tsc_client_name}" \
             --for=condition=Ready \
@@ -793,8 +798,8 @@ apply_skupper_tunnel() {
 
     if [ "${ACTION}" = "delete" ]; then 
         echo "${ACTION} secrets for TSC connection ..."
-        for it in $(${KUBECTL} get secret -n "${OPERATOR_NS}" -l "skupper.io/type" -o name); do
-            ${KUBECTL} "${action}" -n "${OPERATOR_NS}" "${it}" ${config}
+        for it in $(run_kubectl get secret -n "${OPERATOR_NS}" -l "skupper.io/type" -o name); do
+            run_kubectl "${action}" -n "${OPERATOR_NS}" "${it}" ${config}
         done
         return
     fi
@@ -812,12 +817,12 @@ apply_skupper_tunnel() {
     fi
 
     skupper_connection_secret=$(echo "${TSC_TOKEN}" | base64 -d)
-    echo "${skupper_connection_secret}" | ${KUBECTL} "${action}" -n "${OPERATOR_NS}" -f - ${config}
+    echo "${skupper_connection_secret}" | run_kubectl "${action}" -n "${OPERATOR_NS}" -f - ${config}
 
     echo "Waiting for setting up TSC connection..."
     retry_count=0
     while true; do
-        tunnel_svc=$(${KUBECTL} -n "${OPERATOR_NS}" get service --field-selector=metadata.name=remote-nginx-tunnel -o name)
+        tunnel_svc=$(run_kubectl -n "${OPERATOR_NS}" get service --field-selector=metadata.name=remote-nginx-tunnel -o name)
         if [ -n "${tunnel_svc}" ];then break; fi
         retry_count=$((retry_count + 1))
         if message=$(retry "${retry_count}"); then
@@ -835,7 +840,7 @@ wait_for_tsc_sync_up() {
     echo "Waiting for Kubeturbo CR updates..."
     retry_count=0
     while true; do
-        turbo_server=$(${KUBECTL} -n "${OPERATOR_NS}" get Kubeturbos "${KUBETURBO_NAME}" -o=jsonpath='{.spec.serverMeta.turboServer}' | grep remote-nginx-tunnel)
+        turbo_server=$(run_kubectl -n "${OPERATOR_NS}" get Kubeturbos "${KUBETURBO_NAME}" -o=jsonpath='{.spec.serverMeta.turboServer}' | grep remote-nginx-tunnel)
         if [ -n "${turbo_server}" ];then break; fi
         retry_count=$((retry_count + 1))
         if message=$(retry "${retry_count}"); then
@@ -847,9 +852,9 @@ wait_for_tsc_sync_up() {
     done
 
     # Restart the kubeturbo pod to secure the updates if the operator hasn't restart the pod yet
-    kubeturbo_pod=$(${KUBECTL} -n "${OPERATOR_NS}" get pods --field-selector=status.phase=Running -o name | grep "${KUBETURBO_NAME}")
+    kubeturbo_pod=$(run_kubectl -n "${OPERATOR_NS}" get pods --field-selector=status.phase=Running -o name | grep "${KUBETURBO_NAME}")
     if [ -n "${kubeturbo_pod}" ]; then
-        ${KUBECTL} -n "${OPERATOR_NS}" delete "${kubeturbo_pod}" --ignore-not-found
+        run_kubectl -n "${OPERATOR_NS}" delete "${kubeturbo_pod}" --ignore-not-found
         wait_for_deployment "${OPERATOR_NS}" "${KUBETURBO_NAME}"
     fi
 }
@@ -857,7 +862,7 @@ wait_for_tsc_sync_up() {
 select_cert_op_from_operatorhub() {
     target=$1
     echo "Fetching Openshift certified ${target} operator from OperatorHub ..."
-    cert_ops=$(${KUBECTL} get packagemanifests -o jsonpath="{range .items[*]}{.metadata.name} {.status.catalogSource} {.status.catalogSourceNamespace}{'\n'}{end}" | grep -e "${target}" | grep -e "${CARALOG_SOURCE}.*${CARALOG_SOURCE_NS}" | awk '{print $1}')
+    cert_ops=$(run_kubectl get packagemanifests -o jsonpath="{range .items[*]}{.metadata.name} {.status.catalogSource} {.status.catalogSourceNamespace}{'\n'}{end}" | grep -e "${target}" | grep -e "${CARALOG_SOURCE}.*${CARALOG_SOURCE_NS}" | awk '{print $1}')
     cert_ops_count=$(echo "${cert_ops}" | wc -l | awk '{print $1}')
     if [ -z "${cert_ops}" ] || [ "${cert_ops_count}" -lt 1 ]; then
         echo "There aren't any certified ${target} operator in the Operatorhub, please contact administrator for more information!" && exit 1
@@ -885,7 +890,7 @@ select_cert_op_channel_from_operatorhub() {
     cert_op_name=${1-${CERT_OP_NAME}}
     target_release=${2-${DEFAULT_RELEASE}}
     echo "Fetching Openshift ${cert_op_name} channels from OperatorHub ..."
-    channels=$(${KUBECTL} get packagemanifests "${cert_op_name}" -o jsonpath="{range .status.channels[*]}{.name}:{.currentCSV}{'\n'}{end}" | grep "${target_release}")
+    channels=$(run_kubectl get packagemanifests "${cert_op_name}" -o jsonpath="{range .status.channels[*]}{.name}:{.currentCSV}{'\n'}{end}" | grep "${target_release}")
     channel_count=$(echo "${channels}" | wc -l | awk '{print $1}')
     if [ -z "${channels}" ] || [ "${channel_count}" -lt 1 ]; then
         echo "There aren't any channel created for ${cert_op_name}, please contact administrator for more information!" && exit 1
@@ -938,13 +943,13 @@ wait_for_deployment() {
     echo "Waiting for deployment '${deploy_name}' to start..."
     retry_count=0
     while true; do
-        full_deploy_name=$(${KUBECTL} -n "${namespace}" get deploy -o name | grep -E "^deployment.apps/${deploy_name}$")
+        full_deploy_name=$(run_kubectl -n "${namespace}" get deploy -o name | grep -E "^deployment.apps/${deploy_name}$")
         if [ -n "${full_deploy_name}" ]; then
-            deploy_status=$(${KUBECTL} -n "${namespace}" rollout status "${full_deploy_name}" --timeout=5s 2>&1 | grep "successfully")
+            deploy_status=$(run_kubectl -n "${namespace}" rollout status "${full_deploy_name}" --timeout=5s 2>&1 | grep "successfully")
             if [ -n "${deploy_status}" ]; then
                 deploy_name=$(echo "${full_deploy_name}" | awk -F '/' '{print $2}')
-                for pod in $(${KUBECTL} -n "${namespace}" get pods -o name | grep "${deploy_name}"); do
-                    ${KUBECTL} -n "${namespace}" wait --for=condition=Ready "${pod}"
+                for pod in $(run_kubectl -n "${namespace}" get pods -o name | grep "${deploy_name}"); do
+                    run_kubectl -n "${namespace}" wait --for=condition=Ready "${pod}"
                 done
                 break
             fi
@@ -954,7 +959,7 @@ wait_for_deployment() {
             echo "${message}"
         else
             echo "Please check following events for more information:"
-            ${KUBECTL} -n "${namespace}" get events --sort-by='.lastTimestamp' | grep "${deploy_name}"
+            run_kubectl -n "${namespace}" get events --sort-by='.lastTimestamp' | grep "${deploy_name}"
             exit 1
         fi
     done
@@ -1001,34 +1006,34 @@ apply_operator_bundle() {
     echo "${operator_yaml_str}" | awk '/^---/{i++} {file = "'"${tmp_dir}"'/yaml_part_" i ".yaml"; print > file}'
     for yaml_part in "${tmp_dir}"/*.yaml; do
         yaml_abs_path="${yaml_part}"
-        kind_name_str=$(${KUBECTL} create -f "${yaml_abs_path}" --dry-run=client -o=jsonpath="{.kind} {.metadata.name}")
+        kind_name_str=$(run_kubectl create -f "${yaml_abs_path}" --dry-run=client -o=jsonpath="{.kind} {.metadata.name}")
         obj_kind=$(echo "${kind_name_str}" | awk '{print $1}')
         obj_name=$(echo "${kind_name_str}" | awk '{print $2}')
 
-        is_object_exists=$(${KUBECTL} -n "${OPERATOR_NS}" get "${obj_kind}" --field-selector=metadata.name"=${obj_name}" -o name)
+        is_object_exists=$(run_kubectl -n "${OPERATOR_NS}" get "${obj_kind}" --field-selector=metadata.name"=${obj_name}" -o name)
         if [ "${ACTION}" = "delete" ]; then
             # delete k8s resources if exists (avoid cluster resources)
             skip_target=$(should_skip_delete_k8s_object "${obj_kind}")
-            [ -n "${is_object_exists}" ] && [ "${skip_target}" = "false" ] && ${KUBECTL} "${ACTION}" -f "${yaml_abs_path}"
+            [ -n "${is_object_exists}" ] && [ "${skip_target}" = "false" ] && run_kubectl "${ACTION}" -f "${yaml_abs_path}"
         elif [ -n "${is_object_exists}" ] && [ "${obj_kind}" = "ClusterRoleBinding" ]; then
             # if cluster role binding exists, patch it with target services account
-            isClusterRoleBinded=$(${KUBECTL} get "${obj_kind}" "${obj_name}" -o=jsonpath='{range .subjects[*]}{.namespace}{"\n"}{end}' | grep -E "^${OPERATOR_NS}$")
+            isClusterRoleBinded=$(run_kubectl get "${obj_kind}" "${obj_name}" -o=jsonpath='{range .subjects[*]}{.namespace}{"\n"}{end}' | grep -E "^${OPERATOR_NS}$")
             if [ -z "${isClusterRoleBinded}" ]; then 
-                ${KUBECTL} patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/subjects/-", "value": {"kind": "ServiceAccount", "name": "'"${sa_name}"'", "namespace": "'"${OPERATOR_NS}"'"}}]'
+                run_kubectl patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/subjects/-", "value": {"kind": "ServiceAccount", "name": "'"${sa_name}"'", "namespace": "'"${OPERATOR_NS}"'"}}]'
             else
                 echo "Skip patching ${obj_kind} ${obj_name} as the clusterRole has bound to the operator service account already."
             fi
         elif [ -z "${is_object_exists}" ]; then
             # create the k8s object if not exists
-            ${KUBECTL} "create" -f "${yaml_abs_path}" --save-config
+            run_kubectl "create" -f "${yaml_abs_path}" --save-config
         else
             # update the k8s object if exists
-            ${KUBECTL} apply -f "${yaml_abs_path}"
+            run_kubectl apply -f "${yaml_abs_path}"
         fi
 
         # patch operator services account with private registry pull secret 
         if [ "${obj_kind}" = "ServiceAccount" ] && [ -n "${PRIVATE_REGISTRY_SECRET_NAME}" ]; then
-            ${KUBECTL} -n "${OPERATOR_NS}" patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
+            run_kubectl -n "${OPERATOR_NS}" patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
         fi
     done
     rm -rf "${tmp_dir}"

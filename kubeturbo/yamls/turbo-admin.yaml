@@ -61,6 +61,7 @@ rules:
       - applications
       - customresourcedefinitions
       - clusterversions
+      - controllerrevisions
     verbs:
       - get
       - list
@@ -141,3 +142,9 @@ rules:
   - apiGroups: [""]
     resources: ["pods/resize"]
     verbs: ["patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["patch", "update"]
+  - apiGroups: ["policy"]
+    resources: ["pods/eviction"]
+    verbs: ["create"]

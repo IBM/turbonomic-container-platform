@@ -65,6 +65,12 @@ data:
         "url": "{{ .Values.wiremock.url }}"
       },
       {{- end }}
+      {{- if .Values.oomEventHandler }}
+      "oomEventHandler": {
+        "enableEventWrites": {{ .Values.oomEventHandler.enableEventWrites }},
+        "enableRecoveryActions": {{ .Values.oomEventHandler.enableRecoveryActions }}
+      },
+      {{- end }}
       {{- $systemWorkloadDetectors := .Values.systemWorkloadDetectors | default dict }}
       {{- $exclusionDetectors := .Values.exclusionDetectors | default dict }}
       "systemWorkloadDetectors": {
