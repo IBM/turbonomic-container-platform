@@ -177,7 +177,7 @@ spec:
                     type:
                       description: |-
                         Type specifies the type of entity.
-                        This field is required and must be one of application, databaseServer, virtualMachine, physicalMachine
+                        This field is required and must be one of application, databaseServer, virtualMachine, physicalMachine, container, containerSpec
                         or nvidiaGPU.
                       enum:
                       - application
@@ -189,6 +189,8 @@ spec:
                       - kepler
                       - openStackVirtualMachine
                       - openStackPhysicalMachine
+                      - container
+                      - containerSpec
                       type: string
                   required:
                   - attributes
