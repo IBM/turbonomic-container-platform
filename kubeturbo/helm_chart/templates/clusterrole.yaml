@@ -77,6 +77,22 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - cdi.kubevirt.io
+    resources:
+      - datasources
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - instancetype.kubevirt.io
+    resources:
+      - virtualmachineclusterpreferences
+    verbs:
+      - get
+      - list
+      - watch
 {{- end }}
 {{- if eq .Values.roleName "turbo-cluster-admin" }}
 ---
@@ -234,6 +250,22 @@ rules:
       - patch
       - list
       - watch
+  - apiGroups:
+      - cdi.kubevirt.io
+    resources:
+      - datasources
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - instancetype.kubevirt.io
+    resources:
+      - virtualmachineclusterpreferences
+    verbs:
+      - get
+      - list
+      - watch
   - apiGroups: [""]
     resources: ["pods/resize"]
     verbs: ["patch"]
@@ -243,6 +275,10 @@ rules:
   - apiGroups: ["policy"]
     resources: ["pods/eviction"]
     verbs: ["create"]
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
 {{- end }}
 ---
 kind: ClusterRoleBinding

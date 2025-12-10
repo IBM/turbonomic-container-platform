@@ -1306,19 +1306,16 @@ spec:
                 default:
                   enableEventWrites: false
                   enableRecoveryActions: false
-                description: OOMEventHandler defines settings for the OOM event handler
-                  framework.
+                description: OOM event handler framework configurations
                 properties:
                   enableEventWrites:
                     default: false
-                    description: |-
-                      When true, Kubeturbo writes all captured OOM and memory-pressure events
-                      to a local file in the container for visualization.
+                    description: Enable writing OOM events to file for visualization
                     type: boolean
                   enableRecoveryActions:
                     default: false
-                    description: When true, Kubeturbo generates synthetic recovery
-                      actions for OOM events.
+                    description: Enable generating synthetic recovery actions for
+                      container OOM events
                     type: boolean
                 type: object
               ormOwners:
@@ -1727,7 +1724,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.18.1
+        image: icr.io/cpopen/kubeturbo-operator:8.18.2
         livenessProbe:
           httpGet:
             path: /healthz

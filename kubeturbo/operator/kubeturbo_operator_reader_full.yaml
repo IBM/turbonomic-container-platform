@@ -178,7 +178,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.18.1
+        image: icr.io/cpopen/kubeturbo-operator:8.18.2
         livenessProbe:
           httpGet:
             path: /healthz
@@ -248,12 +248,12 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.18.1"
+    tag: "8.18.2"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-    # For Kubeturbo version 8.18.1+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
-    # cpufreqgetterImageTag: "8.18.1"
+    # For Kubeturbo version 8.18.2+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
+    # cpufreqgetterImageTag: "8.18.2"
 
   # Assigning Kubeturbo to node, see 
   # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 
@@ -353,3 +353,10 @@ spec:
   #  containers:
   #    sidecars:
   #      disableActionGeneration: true
+  #
+  # OOM event handler framework configurations
+  # oomEventHandler:
+  # Enable writing OOM events to file for visualization
+  #   enableEventWrites: false
+  # Enable generating synthetic recovery actions for container OOM events
+  #   enableRecoveryActions: false

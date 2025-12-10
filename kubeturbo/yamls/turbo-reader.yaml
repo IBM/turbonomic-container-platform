@@ -76,6 +76,22 @@ rules:
       - list
       - watch
   - apiGroups:
+      - cdi.kubevirt.io
+    resources:
+      - datasources
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - instancetype.kubevirt.io
+    resources:
+      - virtualmachineclusterpreferences
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - charts.helm.k8s.io
     resources:
       - kubeturbos

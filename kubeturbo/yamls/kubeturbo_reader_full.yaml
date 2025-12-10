@@ -112,6 +112,22 @@ rules:
       - update
       - watch
   - apiGroups:
+      - cdi.kubevirt.io
+    resources:
+      - datasources
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - instancetype.kubevirt.io
+    resources:
+      - virtualmachineclusterpreferences
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - charts.helm.k8s.io
     resources:
       - xls
@@ -199,7 +215,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.18.1",
+                "version": "8.18.2",
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
@@ -235,8 +251,13 @@ spec:
       labels:
         app.kubernetes.io/name: kubeturbo
     spec:
+      # If using a private registry, specify the image pull secret name here
+      # imagePullSecrets:
+      #  - name: <your-image-pull-secret-name>
+      #
       # Update serviceAccount if needed
       serviceAccount: turbo-user
+      #
       # Assigning Kubeturbo to node, see 
       # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 
       #
@@ -267,7 +288,7 @@ spec:
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.18.1
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.18.2
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
@@ -296,7 +317,7 @@ spec:
         #- --cpufreq-job-exclude-node-labels=kubernetes.io/key=value
         # The complete cpufreqgetter image uri used for fallback node cpu frequency getter job.
         #- --cpufreqgetter-image=icr.io/cpopen/turbonomic/cpufreqgetter
-        # The cpufreqgetter image tag, valid for Kubeturbo version 8.18.1+ and the valid options are the Turbo released version after 8.18.1 or using latest otherwise.
+        # The cpufreqgetter image tag, valid for Kubeturbo version 8.18.2+ and the valid options are the Turbo released version after 8.18.2 or using latest otherwise.
         #- --cpufreqgetter-image-tag=latest
         # The name of the secret that stores the image pull credentials for cpufreqgetter image.
         #- --cpufreqgetter-image-pull-secret=<secret-name>
@@ -373,7 +394,7 @@ rules:
 # If using an image pull secret. Uncomment the section below and change the pull-secret-name to the secret used.
   # - apiGroups: [""]
   #  resources: ["secrets"]
-  #  resourceNames: ["pull-secret-name"]          # change name of pull secret here
+  #  resourceNames: ["<your-image-pull-secret-name>"]          # change name of pull secret here
   #  verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
