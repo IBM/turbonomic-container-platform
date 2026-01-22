@@ -1353,6 +1353,15 @@ spec:
                         type: object
                     type: object
                 type: object
+              probeUpgrade:
+                default: {}
+                description: Optional settings for probe upgrade
+                properties:
+                  skipTagCheck:
+                    default: false
+                    description: Skip tag check during probe upgrade
+                    type: boolean
+                type: object
               replicaCount:
                 description: Kubeturbo replicaCount
                 format: int32
@@ -1724,7 +1733,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.18.4
+        image: icr.io/cpopen/kubeturbo-operator:8.18.5
         livenessProbe:
           httpGet:
             path: /healthz

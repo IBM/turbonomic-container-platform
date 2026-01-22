@@ -25,12 +25,12 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.18.4"
+    tag: "8.18.5"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-    # For Kubeturbo version 8.18.4+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
-    # cpufreqgetterImageTag: "8.18.4"
+    # For Kubeturbo version 8.18.5+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
+    # cpufreqgetterImageTag: "8.18.5"
 
   # Assigning Kubeturbo to node, see 
   # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 
@@ -93,6 +93,11 @@ spec:
   #  requests:
   #    memory: 512Mi
   #    cpu: "1"
+
+  # Optional probe upgrade configuration
+  # Uncomment to skip tag check during probe upgrade
+  #probeUpgrade:
+  #  skipTagCheck: true
 
   # Cluster Role rules for ORM owners.
   # It's required when using ORM with ClusterRole 'turbo-cluster-admin'.

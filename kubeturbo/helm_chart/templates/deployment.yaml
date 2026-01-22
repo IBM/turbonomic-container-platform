@@ -48,6 +48,8 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+          - name: SKIP_TAG_CHECK
+            value: {{ ( .Values.probeUpgrade | default dict ).skipTagCheck | default false | quote }}
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:

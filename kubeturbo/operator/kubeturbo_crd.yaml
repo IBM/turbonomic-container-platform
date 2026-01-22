@@ -1340,6 +1340,15 @@ spec:
                         type: object
                     type: object
                 type: object
+              probeUpgrade:
+                default: {}
+                description: Optional settings for probe upgrade
+                properties:
+                  skipTagCheck:
+                    default: false
+                    description: Skip tag check during probe upgrade
+                    type: boolean
+                type: object
               replicaCount:
                 description: Kubeturbo replicaCount
                 format: int32
