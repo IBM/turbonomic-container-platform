@@ -3,6 +3,15 @@ entries:
   kubeturbo:
   - apiVersion: v1
     appVersion: "8.0"
+    created: "2026-02-04T11:15:04.624010285-05:00"
+    description: A Helm chart for Turbonomic kubeturbo
+    digest: 60c68c3c50a9ad72a0f4b013b3942fd5d7dcb84832b436e3569b2cb27303fd64
+    name: kubeturbo
+    urls:
+    - https://ibm.github.io/turbonomic-container-platform/downloads/kubeturbo/kubeturbo-8.18.6.tgz
+    version: 8.18.6
+  - apiVersion: v1
+    appVersion: "8.0"
     created: "2026-01-21T19:31:55.143521429-05:00"
     description: A Helm chart for Turbonomic kubeturbo
     digest: 9f467b4cb1a2f1816a3a28175cc126001409193717403cbf02defc983f5d1450
@@ -711,4 +720,4 @@ entries:
     urls:
     - https://ibm.github.io/turbonomic-container-platform/downloads/data-ingestion-framework/turbodif-8.14.5.tgz
     version: 8.14.5
-generated: "2026-02-04T11:14:51.24319347-05:00"
+generated: "2026-02-04T11:15:04.622999185-05:00"
