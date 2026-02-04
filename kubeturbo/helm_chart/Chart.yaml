@@ -2,4 +2,4 @@ apiVersion: v1
 appVersion: "8.0"
 description: A Helm chart for Turbonomic kubeturbo
 name: kubeturbo
-version: 8.18.5
+version: 8.18.6

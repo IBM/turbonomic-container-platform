@@ -95,4 +95,6 @@ data:
       ,
       "policySettings": {{ .Values.policySettings | toJson }}
       {{- end }}
+      ,
+      "skipNodeSuspendOnPodEviction": {{ .Values.skipNodeSuspendOnPodEviction }}
     }

@@ -1441,6 +1441,11 @@ spec:
                 default: turbo-user
                 description: The name of the service account name. Default is turbo-user
                 type: string
+              skipNodeSuspendOnPodEviction:
+                default: false
+                description: Skip suspending nodes when executing the node suspension
+                  action with force pod eviction setup
+                type: boolean
               systemWorkloadDetectors:
                 default:
                   namespacePatterns:
