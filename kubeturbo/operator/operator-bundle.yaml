@@ -1486,6 +1486,16 @@ spec:
                   targetName:
                     type: string
                 type: object
+              virtualizationConfig:
+                description: Optional virtualization settings for VM lifecycle operations.
+                  Changing this value does not require restart of Kubeturbo.
+                properties:
+                  vmLifecycleWaitTimeoutInMins:
+                    default: 30
+                    description: VM lifecycle wait timeout in minutes for VM stop/start
+                      operations
+                    type: integer
+                type: object
               websocketConfig:
                 default:
                   restartOnWriteTimeout: false
@@ -1738,7 +1748,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.19.0
+        image: icr.io/cpopen/kubeturbo-operator:8.19.1
         livenessProbe:
           httpGet:
             path: /healthz

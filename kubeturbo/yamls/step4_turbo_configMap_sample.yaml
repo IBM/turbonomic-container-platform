@@ -31,7 +31,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.19.0",
+                "version": "8.19.1",
                 "turboServer": "https://<Turbo_server_URL>"
             },
             "restAPIConfig": {
@@ -79,6 +79,9 @@ data:
         "containers": {
           "sidecars": {"disableActionGeneration": false}
         }
+      },
+      "virtualizationConfig": {
+        "vmLifecycleWaitTimeoutInMins": 30
       },
       "oomEventHandler": {
         "enableEventWrites": false,

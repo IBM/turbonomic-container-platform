@@ -95,6 +95,12 @@ data:
       ,
       "policySettings": {{ .Values.policySettings | toJson }}
       {{- end }}
+      {{- if .Values.virtualizationConfig }}
+      ,
+      "virtualizationConfig": {
+        "vmLifecycleWaitTimeoutInMins": {{ default 30 .Values.virtualizationConfig.vmLifecycleWaitTimeoutInMins}}
+      }
+      {{- end }}
       ,
       "skipNodeSuspendOnPodEviction": {{ .Values.skipNodeSuspendOnPodEviction }}
     }

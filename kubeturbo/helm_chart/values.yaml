@@ -7,12 +7,12 @@ replicaCount: 1
 # Replace the image with desired version
 image:
   repository: icr.io/cpopen/turbonomic/kubeturbo
-  tag: 8.19.0
+  tag: 8.19.1
   pullPolicy: IfNotPresent
 #  busyboxRepository: busybox
 #  imagePullSecret: ""
 #  cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-#  # cpufreqgetterTag is only valid for Kubeturbo version 8.19.0+, and valid options are the Turbo released version after 8.19.0 or latest otherwise.
+#  # cpufreqgetterTag is only valid for Kubeturbo version 8.19.1+, and valid options are the Turbo released version after 8.19.1 or latest otherwise.
 #  cpufreqgetterTag: latest
 
 annotations:
@@ -192,6 +192,11 @@ policySettings:
   containers:
     sidecars:
       disableActionGeneration: false
+
+# Optional virtualization settings for VM lifecycle operations
+virtualizationConfig:
+  # VM lifecycle wait timeout in minutes for VM stop/start operations (default: 30)
+  vmLifecycleWaitTimeoutInMins: 30
 
 # Optional probe upgrade configuration
 # Uncomment to skip tag check during probe upgrade

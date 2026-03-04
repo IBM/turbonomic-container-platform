@@ -279,6 +279,25 @@ rules:
       - /metrics
     verbs:
       - get
+  {{- if and .Values.featureGates .Values.featureGates.AllowSwitchingAutoscalingClassInKNative }}
+  # Required for Knative/KServe ownership resolution and autoscaling
+  - apiGroups:
+      - serving.knative.dev
+    resources:
+      - revisions
+      - configurations
+      - services
+    verbs:
+      - get
+  - apiGroups:
+      - serving.kserve.io
+    resources:
+      - inferenceservices
+    verbs:
+      - get
+      - patch
+      - update
+  {{- end }}
 {{- end }}
 ---
 kind: ClusterRoleBinding

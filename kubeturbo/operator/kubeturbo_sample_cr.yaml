@@ -25,12 +25,12 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.19.0"
+    tag: "8.19.1"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-    # For Kubeturbo version 8.19.0+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
-    # cpufreqgetterImageTag: "8.19.0"
+    # For Kubeturbo version 8.19.1+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
+    # cpufreqgetterImageTag: "8.19.1"
 
   # Assigning Kubeturbo to node, see 
   # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 
@@ -135,6 +135,11 @@ spec:
   #  containers:
   #    sidecars:
   #      disableActionGeneration: true
+  #
+  # Virtualization settings for VM lifecycle operations
+  # virtualizationConfig:
+  #   # VM lifecycle wait timeout in minutes for VM stop/start operations (default: 30)
+  #   vmLifecycleWaitTimeoutInMins: 30
   #
   # OOM event handler framework configurations
   # oomEventHandler:
