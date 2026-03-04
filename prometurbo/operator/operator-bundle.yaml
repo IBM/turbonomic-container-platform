@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: namespace
     app.kubernetes.io/part-of: prometurbo-deploy
-  name: turbo
+  name: turbonomic
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -183,6 +183,9 @@ spec:
                   turboServer: https://Turbo_server_URL
                 description: Configuration for Turbo Server
                 properties:
+                  proxy:
+                    description: Proxy server address
+                    type: string
                   turboServer:
                     default: https://Turbo_server_URL
                     description: URL for Turbo Server endpoint
@@ -222,6 +225,9 @@ spec:
                 type: string
               lastUpdatedTimestamp:
                 description: Timestamp of the last sync up
+                type: string
+              serverVersion:
+                description: Used server version if lower than operator version
                 type: string
             type: object
             x-kubernetes-preserve-unknown-fields: true
@@ -277,7 +283,7 @@ metadata:
     app.kubernetes.io/name: serviceaccount
     app.kubernetes.io/part-of: prometurbo-deploy
   name: prometurbo-operator
-  namespace: turbo
+  namespace: turbonomic
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -391,7 +397,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: prometurbo-operator
-  namespace: turbo
+  namespace: turbonomic
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -404,7 +410,7 @@ metadata:
     app.kubernetes.io/name: deployment
     app.kubernetes.io/part-of: prometurbo-deploy
   name: prometurbo-operator
-  namespace: turbo
+  namespace: turbonomic
 spec:
   replicas: 1
   selector:
@@ -425,7 +431,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: icr.io/cpopen/prometurbo-operator:8.19.0
+        image: icr.io/cpopen/prometurbo-operator:8.19.1
         livenessProbe:
           httpGet:
             path: /healthz

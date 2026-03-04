@@ -171,6 +171,9 @@ spec:
                   turboServer: https://Turbo_server_URL
                 description: Configuration for Turbo Server
                 properties:
+                  proxy:
+                    description: Proxy server address
+                    type: string
                   turboServer:
                     default: https://Turbo_server_URL
                     description: URL for Turbo Server endpoint
@@ -210,6 +213,9 @@ spec:
                 type: string
               lastUpdatedTimestamp:
                 description: Timestamp of the last sync up
+                type: string
+              serverVersion:
+                description: Used server version if lower than operator version
                 type: string
             type: object
             x-kubernetes-preserve-unknown-fields: true

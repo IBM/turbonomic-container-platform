@@ -21,12 +21,19 @@ export KUBECTL_WARNINGS="false"
 K8S_TYPE="Kubernetes"
 OCP_TYPE="RedHatOpenShift"
 
+# ENUM values for the approach to connect to the Prometheus server
+NONE_APPROACH="none"
+TOKEN_APPROACH="token"
+SERVICEACCOUNT_APPROACH="service account"
+CUSTOMSECRET_APPROACH="custom secret"
+MANUALTOKEN_APPROACH="manual token"
+
 CARALOG_SOURCE="certified-operators"
 CARALOG_SOURCE_NS="openshift-marketplace"
 
 TSC_TOKEN_FILE=""
 DEFAULT_RELEASE="stable"
-DEFAULT_NS="turbo"
+DEFAULT_NS="turbonomic"
 DEFAULT_TARGET_NAME="Customer-cluster"
 DEFAULT_PROMETHEUS_ADDRESS="http://127.0.0.1:8081/metrics"
 DEFAULT_ROLE="cluster-admin"
@@ -41,6 +48,9 @@ DEFAULT_TURBODIF_IMG_REPO="turbonomic/turbodif"
 DEFAULT_PRIVATE_REGISTRY_SECRET_NAME="private-docker-registry-secret-prometurbo"
 DEFAULT_LOGGING_LEVEL=0
 DEFAULT_KUBESTATE_VERSION="v2.14.0"
+DEFAULT_PROXY_SERVER=""
+DEFAULT_PSC_NAME="prometheus-server-config"
+DEFAULT_PROMETHEUS_SERVER_SECRET_NAME="prometheus-server-authorization-secret"
 
 RETRY_INTERVAL=10 # in seconds
 MAX_RETRY=10
@@ -73,6 +83,15 @@ PRIVATE_REGISTRY_PREFIX=${PRIVATE_REGISTRY_PREFIX:-""}
 PRIVATE_REGISTRY_USRNAME=${PRIVATE_REGISTRY_USRNAME:-""}
 PRIVATE_REGISTRY_PASSWRD=${PRIVATE_REGISTRY_PASSWRD:-""}
 TARGET_SUBTYPE=${TARGET_SUBTYPE:-""}
+PROXY_SERVER=${PROXY_SERVER:-${DEFAULT_PROXY_SERVER}}
+
+PSC_NAME="${PSC_NAME:-${DEFAULT_PSC_NAME}}"
+PROMETHEUS_SERVER_URL="${PROMETHEUS_SERVER_URL:-""}"
+PROMETHEUS_SERVER_SECRET_NAME="${PROMETHEUS_SERVER_SECRET_NAME:-${DEFAULT_PROMETHEUS_SERVER_SECRET_NAME}}"
+PROMETHEUS_QUERY_MAPPING_CR="${PROMETHEUS_QUERY_MAPPING_CR:-""}"
+PROMETHEUS_ACCESS_TOKEN=${PROMETHEUS_ACCESS_TOKEN:-""}
+PROMETHEUS_SERVERACCOUNT_NS=${PROMETHEUS_SERVERACCOUNT_NS:-""}
+PROMETHEUS_SERVERACCOUNT_NAME=${PROMETHEUS_SERVERACCOUNT_NAME:-""}
 
 LOGGING_LEVEL=${LOGGING_LEVEL:-${DEFAULT_LOGGING_LEVEL}}
 
@@ -90,6 +109,7 @@ K8S_CLUSTER_KINDS="<EMPTY>"
 PRIVATE_REGISTRY_ENABLED="false"
 PRIVATE_REGISTRY_SECRET_NAME=""
 ACCEPT_FALLBACK=""
+PROMETHEUS_SERVER_CONNECTION_APPROACH=""
 
 ################## FUNCTIONS ##################
 # Function to check if the current system supports all the commands needed to run the script
@@ -138,8 +158,12 @@ validate_args() {
 
     # Pre-process the encoded secrets and passwords
     if [ "${PWD_SECRET_ENCODED}" = "true" ]; then
+        PRIVATE_REGISTRY_PASSWRD=$(password_secret_handler "${PRIVATE_REGISTRY_PASSWRD}")
         OAUTH_CLIENT_ID=$(password_secret_handler "${OAUTH_CLIENT_ID}")
         OAUTH_CLIENT_SECRET=$(password_secret_handler "${OAUTH_CLIENT_SECRET}")
+        PROXY_SERVER=$(password_secret_handler "${PROXY_SERVER}")
+        PROMETHEUS_ACCESS_TOKEN=$(password_secret_handler "${PROMETHEUS_ACCESS_TOKEN}")
+        PROMETHEUS_QUERY_MAPPING_CR=$(password_secret_handler "${PROMETHEUS_QUERY_MAPPING_CR}")
     fi
 
     # If the target subtype is not set, auto-detect the current cluster
@@ -158,6 +182,9 @@ validate_args() {
     else
         PRIVATE_REGISTRY_ENABLED="false"
     fi
+
+    # determine which approach is used to connect to the Prometheus server based on the args provided by the user
+    determine_prometheus_connection_approach
 }
 
 # Wraps up kubectl cmd to ensure spaces in path can be handle safely
@@ -215,6 +242,7 @@ confirmations() {
 
 # Function to confirm args that are passed into the script and get user's consent
 confirm_installation() {
+    proxy_server_enabled=$([ -n "${PROXY_SERVER}" ] && echo 'true' || echo 'false')
     echo "Here is the summary for the current installation:"
     echo ""
     printf "%-20s %-20s\n" "---------" "---------"
@@ -232,9 +260,27 @@ confirm_installation() {
     printf "%-20s %-20s\n" "Auto-Logging" "${ENABLE_TSC}"
     printf "%-20s %-20s\n" "Private Registry" "${PRIVATE_REGISTRY_ENABLED}"
     printf "%-20s %-20s\n" "Registry" "${PRIVATE_REGISTRY_PREFIX}"
+    printf "%-20s %-20s\n" "Proxy Server" "${proxy_server_enabled}"
+    printf "%-20s %-20s\n" "Prometheus URL" "${PROMETHEUS_SERVER_URL:-"Not Set"}"
+    printf "%-20s %-20s\n" "Prometheus Connection" "${PROMETHEUS_SERVER_CONNECTION_APPROACH}"
     echo ""
     echo "Please confirm the above settings [Y/n]: " && read -r  continueInstallation
     [ "${continueInstallation}" = "n" ] || [ "${continueInstallation}" = "N" ] && echo "Please retry the script with correct settings!" && exit 1
+}
+
+# Function to determine which approach used to connect to the Prometheus server
+determine_prometheus_connection_approach() {
+    if [ -z ${PROMETHEUS_SERVER_URL} ]; then 
+        PROMETHEUS_SERVER_CONNECTION_APPROACH="${NONE_APPROACH}"
+    elif [ "${PROMETHEUS_SERVER_SECRET_NAME}" != "${DEFAULT_PROMETHEUS_SERVER_SECRET_NAME}" ]; then
+        PROMETHEUS_SERVER_CONNECTION_APPROACH="${CUSTOMSECRET_APPROACH}"
+    elif [ -n "${PROMETHEUS_ACCESS_TOKEN}" ]; then
+        PROMETHEUS_SERVER_CONNECTION_APPROACH="${TOKEN_APPROACH}"
+    elif [ -n "${PROMETHEUS_SERVERACCOUNT_NAME}" ] && [ -n "${PROMETHEUS_SERVERACCOUNT_NS}" ]; then
+        PROMETHEUS_SERVER_CONNECTION_APPROACH="${SERVICEACCOUNT_APPROACH}"
+    else
+        PROMETHEUS_SERVER_CONNECTION_APPROACH="${MANUALTOKEN_APPROACH}"
+    fi
 }
 
 # Function to get client's concent to work with the current cluster
@@ -369,16 +415,18 @@ setup_prometurbo() {
 
     if [ "${ACTION}" = "delete" ]; then
         createORupdate_prometurbo_cr
+        apply_prometheus_metrics_collection_configs
         createORupdate_prometurbo_operator
         apply_private_registry_secret
     else
         apply_private_registry_secret
         createORupdate_prometurbo_operator
+        apply_prometheus_metrics_collection_configs
         createORupdate_prometurbo_cr
     fi
 
     echo "Successfully ${ACTION} Prometurbo in ${OPERATOR_NS} namespace!"
-    run_kubectl -n "${OPERATOR_NS}" get sa,pod,deploy,cm
+    run_kubectl -n "${OPERATOR_NS}" get sa,pod,deploy,cm,pqm,psc
 }
 
 # Create or delete private registry secret
@@ -485,6 +533,7 @@ createORupdate_prometurbo_cr() {
 	  serverMeta:
 	    turboServer: "${TARGET_HOST}"
 	    version: "${PROMETURBO_VERSION}"
+	    proxy: "${PROXY_SERVER}"
 	  image:
 	    prometurboRepository: "${PRIVATE_REGISTRY_PREFIX}/${DEFAULT_PROMETURBO_IMG_REPO}"
 	    prometurboTag: "${PROMETURBO_VERSION}"
@@ -498,6 +547,153 @@ createORupdate_prometurbo_cr() {
 	EOF
     wait_for_deployment "${OPERATOR_NS}" "${PROMETURBO_NAME}"
 }
+
+# Function to setup the Prometheus Metrics Collection Configs
+apply_prometheus_metrics_collection_configs() {
+    echo "Applying Prometheus metrics collection configs ..."
+
+    # Create or update the secret for Prometheus server access token
+    createORupdate_promethues_secret ${ACTION}
+
+    # Apply the PrometheusServerConfig CR to reference the server config
+    createORupdate_psc_cr ${ACTION}
+
+    # Apply the PrometheusQueryMapping CR which defines how to map the metrics from Prometheus to Turbonomic
+    createORupdate_pqm_cr ${ACTION}
+}
+
+# Function to create or update the PrometheusServerConfig CR
+createORupdate_psc_cr() {
+    action="${ACTION}"
+    if [ "${action}" = "delete" ]; then
+        echo "${ACTION} PrometheusServerConfig CR ..."
+        run_kubectl delete PrometheusServerConfig "${PSC_NAME}" --namespace="${OPERATOR_NS}" --ignore-not-found
+        return
+    fi
+
+    if [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${NONE_APPROACH}" ]; then
+        echo "No Prometheus server URL provided, skipping the creation of PrometheusServerConfig CR"
+        return
+    fi
+
+    echo "${ACTION} PrometheusServerConfig CR ..."
+    if [ "${action}" = "delete" ]; then
+        # Skip deletion if the CRD is not found
+        if ! run_kubectl api-resources | grep -qE "PrometheusServerConfig"; then
+            echo "There is not PrometheusServerConfig object to delete"
+            return
+        fi
+    fi
+
+    # Fetch cluster ID from the default kubernetes service
+    cluster_ID="$(run_kubectl -n default get svc kubernetes -ojsonpath='{.metadata.uid}')"
+
+    # Ask user to input the cluster ID manually if the id cannot be fetched
+    if [ -z "${cluster_ID}" ]; then
+        echo "Warning: Unable to fetch cluster ID from the default kubernetes service"
+        echo "Press [Enter] your cluster ID or Ctrl+C to abort the installation..."  && read -r cluster_ID
+        if [ -z "${cluster_ID}" ]; then
+            echo "Cluster ID is required for PrometheusServerConfig, installation aborted..." && exit 1
+        fi
+    fi
+
+    cat <<-EOF | run_kubectl "${action}" -f - ${config}
+	---
+	apiVersion: metrics.turbonomic.io/v1alpha1
+	kind: PrometheusServerConfig
+	metadata:
+	  name: "${PSC_NAME}"
+	  namespace: "${OPERATOR_NS}"
+	spec:
+	  address: "${PROMETHEUS_SERVER_URL}"
+	  bearerToken:
+	    secretKeyRef:
+	      key: authorizationToken
+	      name: "${PROMETHEUS_SERVER_SECRET_NAME}"
+	  clusters:
+	  - identifier:
+	      id: "${cluster_ID}"
+	    queryMappingSelector:
+	      matchExpressions:
+	      - key: mapping
+	        operator: In
+	        values:
+	        - istio
+	        - nvidia-dcgm-exporter
+	        - mixed-vllm-tgi
+	---
+	EOF
+}
+
+# Function to create or update the secret for Prometheus server access token which is referenced by the PrometheusServerConfig CR
+createORupdate_promethues_secret() {
+    action="${ACTION}"
+    if [ "${action}" = "delete" ]; then
+        # Only delete the default secret created by the script to avoid accidental deletion.
+        if [ "${PROMETHEUS_SERVER_SECRET_NAME}" = "${DEFAULT_PROMETHEUS_SERVER_SECRET_NAME}" ]; then
+            echo "Delete Prometheus server secret ${PROMETHEUS_SERVER_SECRET_NAME} ..."
+            run_kubectl delete secret "${PROMETHEUS_SERVER_SECRET_NAME}" --namespace="${OPERATOR_NS}" --ignore-not-found
+        fi
+        return
+    fi
+
+    if [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${NONE_APPROACH}" ]; then
+        # Skip setting Prometheus server if the prometheus server URL is not provided.
+        echo "No Prometheus server URL provided, skipping the creation of Prometheus server secret"
+        return
+    elif [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${CUSTOM_SECRET_APPROACH}" ]; then
+        # If the secret name is customized, use the provided secret to connect to the Prometheus server.
+        echo "Custom Prometheus server secret name is set, ensure the secret ${PROMETHEUS_SERVER_SECRET_NAME} is created in the ${OPERATOR_NS} namespace with the correct authorization token for accessing the Prometheus server."
+        return
+    elif [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${SERVICEACCOUNT_APPROACH}" ]; then
+        # Create or update the default secret with the provided token.
+        PROMETHEUS_ACCESS_TOKEN=$(run_kubectl -n "${PROMETHEUS_SERVERACCOUNT_NS}" create token "${PROMETHEUS_SERVERACCOUNT_NAME}" --duration=87600h)
+    else
+        # Fallback to ask user to input the token in the terminal.
+        echo "No Prometheus access token provided, please enter the token with access to the Prometheus server: " && read -r PROMETHEUS_ACCESS_TOKEN
+    fi
+
+    if [ -z "${PROMETHEUS_ACCESS_TOKEN}" ]; then
+        echo "No Prometheus access token provided, skipping the creation of Prometheus server secret"
+        return
+    fi
+
+    # Create or update the secret with the provided Prometheus access token
+    run_kubectl create secret generic "${PROMETHEUS_SERVER_SECRET_NAME}" \
+        --from-literal=authorizationToken="${PROMETHEUS_ACCESS_TOKEN}" \
+        --namespace="${OPERATOR_NS}" \
+        --dry-run="client" -o yaml | run_kubectl "${action}" -f -
+}   
+
+# Function to create or update the PrometheusQueryMapping CR
+createORupdate_pqm_cr() {
+    if [ -z "${PROMETHEUS_QUERY_MAPPING_CR}" ]; then
+        echo "No PrometheusQueryMapping CR provided, skipping the creation of PrometheusQueryMapping CR"
+        return
+    fi
+
+    action="${ACTION}"
+    unset config
+    if [ "${action}" = "delete" ]; then
+        config="--ignore-not-found"
+    fi
+
+    echo "${ACTION} PrometheusQueryMapping CR ..."
+    if [ "${action}" = "delete" ]; then
+        # Skip deletion if the CRD is not found
+        if ! run_kubectl api-resources | grep -qE "PrometheusQueryMapping"; then
+            echo "There is not PrometheusQueryMapping object to delete"
+            return
+        fi
+    fi
+
+    # Create or update the PrometheusQueryMapping CR
+    tmp_dir=$(mktemp -d)
+    tmp_cr_path="${tmp_dir}/pqm_cr.json"
+    echo "${PROMETHEUS_QUERY_MAPPING_CR}" > ${tmp_cr_path}
+    run_kubectl "${action}" -f "${tmp_cr_path}" ${config} -n "${OPERATOR_NS}"
+    rm -rf "${tmp_dir}"
+}   
 
 # Function to create or update the prometurbo operator in the namespace
 createORupdate_prometurbo_operator() {
@@ -571,7 +767,6 @@ handle_private_registry_fallback() {
 
     ACCEPT_FALLBACK=0
     if [ "${choice}" = "n" ] || [ "${choice}" = "N" ]; then 
-        # TODO: update link
         echo "Please proceed to mirror the OCP catalog for OperatorHub: https://www.ibm.com/docs/en/tarm/8.16.x?topic=requirements-prometurbo-image-repository"
         echo "Press [Enter] to continue: " && read -r _
     else
@@ -589,13 +784,21 @@ createORupdate_prometurbo_operator_via_yaml() {
     prometurbo_operator_release=$(match_github_release "IBM/turbonomic-container-platform" "${PROMETURBO_VERSION}")
 
     operator_crd_path="prometurbo/operator/charts.helm.k8s.io_prometurbos_crd.yaml"
-    operator_crd=$(curl "${source_github_repo}/${prometurbo_operator_release}/${operator_crd_path}" )
-
     operator_yaml_path="prometurbo/operator/prometurbo_operator_full.yaml"
+    pqm_crd_path="turbo-metrics/crd/metrics.turbonomic.io_prometheusquerymappings.yaml"
+    psc_crd_path="turbo-metrics/crd/metrics.turbonomic.io_prometheusserverconfigs.yaml"
+    
+    operator_crd=$(curl "${source_github_repo}/${prometurbo_operator_release}/${operator_crd_path}" )
     operator_full=$(curl "${source_github_repo}/${prometurbo_operator_release}/${operator_yaml_path}" | sed "s/: turbo$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
+    pqm_crd=$(curl "${source_github_repo}/${prometurbo_operator_release}/${pqm_crd_path}" )
+    psc_crd=$(curl "${source_github_repo}/${prometurbo_operator_release}/${psc_crd_path}" )
 
     operator_yaml_bundle=$(cat <<-EOF | run_kubectl create -f - -n "${OPERATOR_NS}" --dry-run=client -o yaml
 	${operator_crd}
+	---
+	${pqm_crd}
+	---
+	${psc_crd}
 	---
 	${operator_full}
 	EOF
