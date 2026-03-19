@@ -67,8 +67,12 @@ data:
       {{- end }}
       {{- if .Values.oomEventHandler }}
       "oomEventHandler": {
-        "enableEventWrites": {{ .Values.oomEventHandler.enableEventWrites }},
+      {{- if hasKey .Values.oomEventHandler "enableEventWrites" }}
+        "enableEventWrites": {{ .Values.oomEventHandler.enableEventWrites }}{{- if hasKey .Values.oomEventHandler "enableRecoveryActions" }},{{ end }}
+      {{- end }}
+      {{- if hasKey .Values.oomEventHandler "enableRecoveryActions" }}
         "enableRecoveryActions": {{ .Values.oomEventHandler.enableRecoveryActions }}
+      {{- end }}
       },
       {{- end }}
       {{- $systemWorkloadDetectors := .Values.systemWorkloadDetectors | default dict }}

@@ -1292,7 +1292,7 @@ spec:
               oomEventHandler:
                 default:
                   enableEventWrites: false
-                  enableRecoveryActions: false
+                  enableRecoveryActions: true
                 description: OOM event handler framework configurations
                 properties:
                   enableEventWrites:
@@ -1300,7 +1300,7 @@ spec:
                     description: Enable writing OOM events to file for visualization
                     type: boolean
                   enableRecoveryActions:
-                    default: false
+                    default: true
                     description: Enable generating synthetic recovery actions for
                       container OOM events
                     type: boolean

@@ -26,7 +26,7 @@ CARALOG_SOURCE_NS="openshift-marketplace"
 
 TSC_TOKEN_FILE=""
 DEFAULT_RELEASE="stable"
-DEFAULT_NS="turbo"
+DEFAULT_NS="turbonomic"
 DEFAULT_TARGET_NAME="Customer-cluster"
 DEFAULT_ROLE="cluster-admin"
 DEFAULT_ENABLE_TSC="optional"
@@ -468,7 +468,8 @@ apply_kubeturbo_op_yaml() {
     source_github_repo="https://raw.githubusercontent.com/IBM/turbonomic-container-platform"
     operator_yaml_path="kubeturbo/operator/operator-bundle.yaml"
     kubeturbo_operator_release=$(match_github_release "IBM/turbonomic-container-platform" "${KUBETURBO_VERSION}")
-    operator_yaml_bundle=$(curl "${source_github_repo}/${kubeturbo_operator_release}/${operator_yaml_path}" | sed "s/: turbo$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
+    # The default namespace in previous bundle yaml was turbo but got replace to turbonomic recently, we need to support both in case user specified an older version for installation
+    operator_yaml_bundle=$(curl "${source_github_repo}/${kubeturbo_operator_release}/${operator_yaml_path}" | sed "s/: turbo$/: ${OPERATOR_NS}/g" | sed "s/: turbonomic$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
     
     # Only apply operator version once user specified
     if [ -n "${KUBETURBO_OP_VERSION}" ]; then

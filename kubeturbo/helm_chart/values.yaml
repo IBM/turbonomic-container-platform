@@ -7,12 +7,12 @@ replicaCount: 1
 # Replace the image with desired version
 image:
   repository: icr.io/cpopen/turbonomic/kubeturbo
-  tag: 8.19.1
+  tag: 8.19.2
   pullPolicy: IfNotPresent
 #  busyboxRepository: busybox
 #  imagePullSecret: ""
 #  cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-#  # cpufreqgetterTag is only valid for Kubeturbo version 8.19.1+, and valid options are the Turbo released version after 8.19.1 or latest otherwise.
+#  # cpufreqgetterTag is only valid for Kubeturbo version 8.19.2+, and valid options are the Turbo released version after 8.19.2 or latest otherwise.
 #  cpufreqgetterTag: latest
 
 annotations:
@@ -178,7 +178,7 @@ oomEventHandler:
 # to a local file in the container for visualization.
   enableEventWrites: false
 # When true, Kubeturbo generates synthetic recovery actions for OOM events.
-  enableRecoveryActions: false
+  enableRecoveryActions: true
 
 # Discovery-related configurations
 # discovery:

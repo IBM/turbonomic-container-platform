@@ -1,22 +1,16 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  # turbo is default value used in the samples provided
-  name: turbo
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
   # Update the namespace value if required
   name: turbo-user
-  namespace: turbo
+  namespace: turbonomic
 ---
 #option to use secret for Turbo credentials
 apiVersion: v1
 kind: Secret
 metadata:
   name: turbonomic-credentials
-  namespace: turbo
+  namespace: turbonomic
 type: Opaque
 data:
   # username: <Username_encoded_base64>
@@ -143,12 +137,12 @@ metadata:
   # Provide a value for the binding name: and update namespace if needed
   # The name should be unique for Kubeturbo instance
   name: turbo-all-binding-kubeturbo-turbo
-  namespace: turbo
+  namespace: turbonomic
 subjects:
 - kind: ServiceAccount
   # Provide the correct value for service account name: and namespace if needed
   name: turbo-user
-  namespace: turbo
+  namespace: turbonomic
 roleRef:
   # User creating this resource must have permissions to add this policy to the SA
   kind: ClusterRole
@@ -163,7 +157,7 @@ metadata:
   # requires Turbo Server and kubeturbo pod 6.4.3 and higher 
   # Provide a value for the config name: and update namespace if needed
   name: turbo-config
-  namespace: turbo
+  namespace: turbonomic
 data:
   # Update the values for version, turboServer, opsManagerUserName, opsManagerPassword
   # For version, use Turbo Server Version, even when running CWOM
@@ -211,7 +205,7 @@ data:
       },
       "oomEventHandler": {
         "enableEventWrites": false,
-        "enableRecoveryActions": false
+        "enableRecoveryActions": true
       },
       "skipNodeSuspendOnPodEviction": false
     }
@@ -219,7 +213,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.19.1",
+                "version": "8.19.2",
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
@@ -240,7 +234,7 @@ metadata:
   # use this yaml to deploy the kubeturbo pod 
   # Provide a value for the deploy/pod name: and update namespace if needed
   name: kubeturbo
-  namespace: turbo
+  namespace: turbonomic
 spec:
   replicas: 1
   selector:
@@ -292,7 +286,7 @@ spec:
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.19.1
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.19.2
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
@@ -324,7 +318,7 @@ spec:
         #- --cpufreq-job-exclude-node-labels=kubernetes.io/key=value
         # The complete cpufreqgetter image uri used for fallback node cpu frequency getter job.
         #- --cpufreqgetter-image=icr.io/cpopen/turbonomic/cpufreqgetter
-        # The cpufreqgetter image tag, valid for Kubeturbo version 8.19.1+ and the valid options are the Turbo released version after 8.19.1 or using latest otherwise.
+        # The cpufreqgetter image tag, valid for Kubeturbo version 8.19.2+ and the valid options are the Turbo released version after 8.19.2 or using latest otherwise.
         #- --cpufreqgetter-image-tag=latest
         # The name of the secret that stores the image pull credentials for cpufreqgetter image.
         #- --cpufreqgetter-image-pull-secret=<secret-name>
@@ -384,7 +378,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: turbo-user-role
-  namespace: turbo
+  namespace: turbonomic
 rules:
   - apiGroups: 
       - apps
@@ -408,7 +402,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: turbo-user-role-binding
-  namespace: turbo
+  namespace: turbonomic
 subjects:
   - kind: ServiceAccount
     name: turbo-user

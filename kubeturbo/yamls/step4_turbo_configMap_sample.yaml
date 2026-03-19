@@ -5,7 +5,7 @@ metadata:
   # requires Turbo Server and kubeturbo pod 6.4.3 and higher 
   # Provide a value for the config name: and update namespace if needed
   name: turbo-config
-  namespace: turbo
+  namespace: turbonomic
 data:
   # Update the values for version, turboServer, opsManagerUserName, opsManagerPassword
   # For version, use Turbo Server Version, even when running CWOM
@@ -31,7 +31,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.19.1",
+                "version": "8.19.2",
                 "turboServer": "https://<Turbo_server_URL>"
             },
             "restAPIConfig": {
@@ -85,7 +85,7 @@ data:
       },
       "oomEventHandler": {
         "enableEventWrites": false,
-        "enableRecoveryActions": false
+        "enableRecoveryActions": true
       },
       "skipNodeSuspendOnPodEviction": false
     }

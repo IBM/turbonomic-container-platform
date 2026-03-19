@@ -3,5 +3,5 @@ kind: Namespace
 metadata:
   # use this yaml to create a namespace where you will deploy kubeturbo.
   # Provide a value for name:
-  # turbo is default value used in the samples provided
-  name: turbo
+  # turbonomic is default value used in the samples provided
+  name: turbonomic
