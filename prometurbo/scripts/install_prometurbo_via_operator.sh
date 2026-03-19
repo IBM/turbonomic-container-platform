@@ -28,8 +28,8 @@ SERVICEACCOUNT_APPROACH="service account"
 CUSTOMSECRET_APPROACH="custom secret"
 MANUALTOKEN_APPROACH="manual token"
 
-CARALOG_SOURCE="certified-operators"
-CARALOG_SOURCE_NS="openshift-marketplace"
+CATALOG_SOURCE="certified-operators"
+CATALOG_SOURCE_NS="openshift-marketplace"
 
 TSC_TOKEN_FILE=""
 DEFAULT_RELEASE="stable"
@@ -270,7 +270,7 @@ confirm_installation() {
 
 # Function to determine which approach used to connect to the Prometheus server
 determine_prometheus_connection_approach() {
-    if [ -z ${PROMETHEUS_SERVER_URL} ]; then 
+    if [ -z "${PROMETHEUS_SERVER_URL}" ]; then
         PROMETHEUS_SERVER_CONNECTION_APPROACH="${NONE_APPROACH}"
     elif [ "${PROMETHEUS_SERVER_SECRET_NAME}" != "${DEFAULT_PROMETHEUS_SERVER_SECRET_NAME}" ]; then
         PROMETHEUS_SERVER_CONNECTION_APPROACH="${CUSTOMSECRET_APPROACH}"
@@ -283,7 +283,7 @@ determine_prometheus_connection_approach() {
     fi
 }
 
-# Function to get client's concent to work with the current cluster
+# Function to get client's consent to work with the current cluster
 confirm_installation_cluster() {
     echo "Info: Your current Kubernetes context is set to the following:"
     show_current_kube_context
@@ -553,13 +553,13 @@ apply_prometheus_metrics_collection_configs() {
     echo "Applying Prometheus metrics collection configs ..."
 
     # Create or update the secret for Prometheus server access token
-    createORupdate_promethues_secret ${ACTION}
+    createORupdate_promethues_secret "${ACTION}"
 
     # Apply the PrometheusServerConfig CR to reference the server config
-    createORupdate_psc_cr ${ACTION}
+    createORupdate_psc_cr "${ACTION}"
 
     # Apply the PrometheusQueryMapping CR which defines how to map the metrics from Prometheus to Turbonomic
-    createORupdate_pqm_cr ${ACTION}
+    createORupdate_pqm_cr "${ACTION}"
 }
 
 # Function to create or update the PrometheusServerConfig CR
@@ -567,7 +567,12 @@ createORupdate_psc_cr() {
     action="${ACTION}"
     if [ "${action}" = "delete" ]; then
         echo "${ACTION} PrometheusServerConfig CR ..."
-        run_kubectl delete PrometheusServerConfig "${PSC_NAME}" --namespace="${OPERATOR_NS}" --ignore-not-found
+        if ! run_kubectl api-resources | grep -qE "PrometheusServerConfig"; then
+            # Skip deletion if the CRD is not found
+            echo "There is not PrometheusServerConfig object to delete"
+        else
+            run_kubectl delete PrometheusServerConfig "${PSC_NAME}" --namespace="${OPERATOR_NS}" --ignore-not-found
+        fi
         return
     fi
 
@@ -577,16 +582,9 @@ createORupdate_psc_cr() {
     fi
 
     echo "${ACTION} PrometheusServerConfig CR ..."
-    if [ "${action}" = "delete" ]; then
-        # Skip deletion if the CRD is not found
-        if ! run_kubectl api-resources | grep -qE "PrometheusServerConfig"; then
-            echo "There is not PrometheusServerConfig object to delete"
-            return
-        fi
-    fi
 
     # Fetch cluster ID from the default kubernetes service
-    cluster_ID="$(run_kubectl -n default get svc kubernetes -ojsonpath='{.metadata.uid}')"
+    cluster_ID="$(run_kubectl get ns kube-system -o jsonpath='{.metadata.uid}')"
 
     # Ask user to input the cluster ID manually if the id cannot be fetched
     if [ -z "${cluster_ID}" ]; then
@@ -613,14 +611,6 @@ createORupdate_psc_cr() {
 	  clusters:
 	  - identifier:
 	      id: "${cluster_ID}"
-	    queryMappingSelector:
-	      matchExpressions:
-	      - key: mapping
-	        operator: In
-	        values:
-	        - istio
-	        - nvidia-dcgm-exporter
-	        - mixed-vllm-tgi
 	---
 	EOF
 }
@@ -641,7 +631,7 @@ createORupdate_promethues_secret() {
         # Skip setting Prometheus server if the prometheus server URL is not provided.
         echo "No Prometheus server URL provided, skipping the creation of Prometheus server secret"
         return
-    elif [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${CUSTOM_SECRET_APPROACH}" ]; then
+    elif [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${CUSTOMSECRET_APPROACH}" ]; then
         # If the secret name is customized, use the provided secret to connect to the Prometheus server.
         echo "Custom Prometheus server secret name is set, ensure the secret ${PROMETHEUS_SERVER_SECRET_NAME} is created in the ${OPERATOR_NS} namespace with the correct authorization token for accessing the Prometheus server."
         return
@@ -690,7 +680,7 @@ createORupdate_pqm_cr() {
     # Create or update the PrometheusQueryMapping CR
     tmp_dir=$(mktemp -d)
     tmp_cr_path="${tmp_dir}/pqm_cr.json"
-    echo "${PROMETHEUS_QUERY_MAPPING_CR}" > ${tmp_cr_path}
+    echo "${PROMETHEUS_QUERY_MAPPING_CR}" > "${tmp_cr_path}"
     run_kubectl "${action}" -f "${tmp_cr_path}" ${config} -n "${OPERATOR_NS}"
     rm -rf "${tmp_dir}"
 }   
@@ -744,8 +734,8 @@ createORupdate_prometurbo_subscription() {
 	  channel: "${CERT_PROMETURBO_OP_RELEASE}"
 	  installPlanApproval: "Automatic"
 	  name: "${CERT_PROMETURBO_OP_NAME}"
-	  source: "${CARALOG_SOURCE}"
-	  sourceNamespace: "${CARALOG_SOURCE_NS}"
+	  source: "${CATALOG_SOURCE}"
+	  sourceNamespace: "${CATALOG_SOURCE_NS}"
 	  startingCSV: "${CERT_PROMETURBO_OP_VERSION}"
 	---
 	EOF
@@ -789,7 +779,8 @@ createORupdate_prometurbo_operator_via_yaml() {
     psc_crd_path="turbo-metrics/crd/metrics.turbonomic.io_prometheusserverconfigs.yaml"
     
     operator_crd=$(curl "${source_github_repo}/${prometurbo_operator_release}/${operator_crd_path}" )
-    operator_full=$(curl "${source_github_repo}/${prometurbo_operator_release}/${operator_yaml_path}" | sed "s/: turbo$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
+    # The default namespace in previous bundle yaml was turbo but got replace to turbonomic recently, we need to support both in case user specified an older version for installation
+    operator_full=$(curl "${source_github_repo}/${prometurbo_operator_release}/${operator_yaml_path}" | sed "s/: turbo$/: ${OPERATOR_NS}/g" | sed "s/: turbonomic$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
     pqm_crd=$(curl "${source_github_repo}/${prometurbo_operator_release}/${pqm_crd_path}" )
     psc_crd=$(curl "${source_github_repo}/${prometurbo_operator_release}/${psc_crd_path}" )
 
@@ -912,12 +903,12 @@ should_skip_delete_k8s_object() {
 select_cert_op_from_operatorhub() {
     target=$1
     echo "Fetching Openshift certified ${target} operator from OperatorHub ..."
-    cert_ops=$(run_kubectl get packagemanifests -o jsonpath="{range .items[*]}{.metadata.name} {.status.catalogSource} {.status.catalogSourceNamespace}{'\n'}{end}" | grep -e "${target}" | grep -e "${CARALOG_SOURCE}.*${CARALOG_SOURCE_NS}" | awk '{print $1}')
+    cert_ops=$(run_kubectl get packagemanifests -o jsonpath="{range .items[*]}{.metadata.name} {.status.catalogSource} {.status.catalogSourceNamespace}{'\n'}{end}" | grep -e "${target}" | grep -e "${CATALOG_SOURCE}.*${CATALOG_SOURCE_NS}" | awk '{print $1}')
     cert_ops_count=$(echo "${cert_ops}" | wc -l | awk '{print $1}')
     if [ -z "${cert_ops}" ] || [ "${cert_ops_count}" -lt 1 ]; then
         echo "There aren't any certified ${target} operator in the Operatorhub, please contact administrator for more information!" && exit 1
     elif [ "${cert_ops_count}" -gt 1 ]; then
-        PS3="Fetched mutiple certified ${target} operators in the Operatorhub, please select a number to proceed OR type 'exit' to exit: "
+        PS3="Fetched multiple certified ${target} operators in the Operatorhub, please select a number to proceed OR type 'exit' to exit: "
         while true; do
             echo "Available options:"
             i=1; echo "${cert_ops}" | while IFS= read -r cert_op; do
@@ -946,7 +937,7 @@ select_cert_op_channel_from_operatorhub() {
     if [ -z "${channels}" ] || [ "${channel_count}" -lt 1 ]; then
         echo "There aren't any channel created for ${cert_op_name}, please contact administrator for more information!" && exit 1
     elif [ "${channel_count}" -gt 1 ]; then
-        PS3="Fetched mutiple releases, please select a number to proceed OR type 'exit' to exit: "
+        PS3="Fetched multiple releases, please select a number to proceed OR type 'exit' to exit: "
         while true; do
             echo "Available options:"
             i=1; echo "${channels}" | while IFS= read -r channel; do
@@ -1095,8 +1086,8 @@ createORupdate_tsc_subscription() {
 	  channel: "${CERT_TSC_OP_RELEASE}"
 	  installPlanApproval: Automatic
 	  name: "${CERT_TSC_OP_NAME}"
-	  source: "${CARALOG_SOURCE}"
-	  sourceNamespace: "${CARALOG_SOURCE_NS}"
+	  source: "${CATALOG_SOURCE}"
+	  sourceNamespace: "${CATALOG_SOURCE_NS}"
 	  startingCSV: "${CERT_TSC_OP_VERSION}"
 	---
 	EOF
@@ -1255,11 +1246,11 @@ createORupdate_skupper_tunnel() {
 
 # Function to apply skupper tunnel to the Prometurbo CR and wait for the pod to become ready
 wait_for_tsc_sync_up() {
-    # Prombeturbo is not an available target for TSC operator to auto-patch the server address
+    # Prometurbo is not an available target for TSC operator to auto-patch the server address
     # So, we need to manually patch the tunnel to Prometurbo's CR for now
     run_kubectl -n "${OPERATOR_NS}" patch prometurbo/"${PROMETURBO_NAME}" --type=json -p='[{"op": "replace", "path": "/spec/serverMeta/turboServer", "value": "http://remote-nginx-tunnel:9080/topology-processor"}]'
 
-    # Manually restart the Prometurbo deployment to be compatiable with the old prometurbo operator impletation.
+    # Manually restart the Prometurbo deployment to be compatible with the old prometurbo operator implementation.
     run_kubectl -n "${OPERATOR_NS}" scale deploy/"${PROMETURBO_NAME}" --replicas=0
     wait_for_deployment "${OPERATOR_NS}" "${PROMETURBO_NAME}"
 }
