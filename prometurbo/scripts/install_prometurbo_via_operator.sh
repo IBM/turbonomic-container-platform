@@ -111,6 +111,14 @@ PRIVATE_REGISTRY_SECRET_NAME=""
 ACCEPT_FALLBACK=""
 PROMETHEUS_SERVER_CONNECTION_APPROACH=""
 
+PROMETHEUS_NS=""
+PROMETHEUS_PORT=""
+PROMETHEUS_SERVICES_NAME=""
+
+PORT_FORWARD_PID=""
+PORT_FORWARD_URL=""
+PORT_FORWARD_PORT=""
+
 ################## FUNCTIONS ##################
 # Function to check if the current system supports all the commands needed to run the script
 dependencies_check() {
@@ -276,7 +284,7 @@ determine_prometheus_connection_approach() {
         PROMETHEUS_SERVER_CONNECTION_APPROACH="${CUSTOMSECRET_APPROACH}"
     elif [ -n "${PROMETHEUS_ACCESS_TOKEN}" ]; then
         PROMETHEUS_SERVER_CONNECTION_APPROACH="${TOKEN_APPROACH}"
-    elif [ -n "${PROMETHEUS_SERVERACCOUNT_NAME}" ] && [ -n "${PROMETHEUS_SERVERACCOUNT_NS}" ]; then
+    elif [ -n "${PROMETHEUS_SERVERACCOUNT_NAME}" ] || [ -n "${PROMETHEUS_SERVERACCOUNT_NS}" ]; then
         PROMETHEUS_SERVER_CONNECTION_APPROACH="${SERVICEACCOUNT_APPROACH}"
     else
         PROMETHEUS_SERVER_CONNECTION_APPROACH="${MANUALTOKEN_APPROACH}"
@@ -552,6 +560,9 @@ createORupdate_prometurbo_cr() {
 apply_prometheus_metrics_collection_configs() {
     echo "Applying Prometheus metrics collection configs ..."
 
+    # Valid if Prometheus is accessible and validate queries
+    validate_prometheus_inputs
+
     # Create or update the secret for Prometheus server access token
     createORupdate_promethues_secret "${ACTION}"
 
@@ -560,6 +571,318 @@ apply_prometheus_metrics_collection_configs() {
 
     # Apply the PrometheusQueryMapping CR which defines how to map the metrics from Prometheus to Turbonomic
     createORupdate_pqm_cr "${ACTION}"
+}
+
+validate_prometheus_inputs() {
+    if [ "${action}" = "delete" ]; then
+        return
+    fi
+
+    # Get Prometheus token
+    fetch_prometheus_token
+    verify_prometheus_connection "${PROMETHEUS_SERVER_URL}" "${PROMETHEUS_ACCESS_TOKEN}"
+    verify_promql_in_pqm "${PROMETHEUS_SERVER_URL}" "${PROMETHEUS_ACCESS_TOKEN}"
+}
+
+# Get Prometheus token
+fetch_prometheus_token() {
+    if [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${SERVICEACCOUNT_APPROACH}" ]; then
+        if ! run_kubectl get ns "${PROMETHEUS_SERVERACCOUNT_NS}" > /dev/null 2>&1; then
+            echo "ERROR: The specified Prometheus namespace '${PROMETHEUS_SERVERACCOUNT_NS}' does not exist. Please provide a valid namespace and re-run the installation script." >&2
+            exit 1
+        elif ! run_kubectl get sa "${PROMETHEUS_SERVERACCOUNT_NAME}" -n "${PROMETHEUS_SERVERACCOUNT_NS}" > /dev/null 2>&1; then
+            echo "ERROR: The specified Prometheus service account '${PROMETHEUS_SERVERACCOUNT_NAME}' was not found in namespace '${PROMETHEUS_SERVERACCOUNT_NS}'. Verify that the service account name is correct and try again." >&2
+            exit 1
+        fi
+        PROMETHEUS_ACCESS_TOKEN=$(run_kubectl -n "${PROMETHEUS_SERVERACCOUNT_NS}" create token "${PROMETHEUS_SERVERACCOUNT_NAME}" --duration=87600h)
+    elif [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${MANUALTOKEN_APPROACH}" ]; then
+        echo "ERROR: No Prometheus access token was provided. Please supply a valid token or using other approaches for Prometheus authorization." >&2
+        exit 1
+    elif [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${CUSTOMSECRET_APPROACH}" ]; then
+        # Check if the secret exists
+        if ! run_kubectl get secret "${PROMETHEUS_SERVER_SECRET_NAME}" -n "${OPERATOR_NS}" > /dev/null 2>&1; then
+            echo "ERROR: The specified custom Prometheus secret '${PROMETHEUS_SERVER_SECRET_NAME}' does not exist in namespace '${OPERATOR_NS}'. Please create the secret before re-running the installation script." >&2
+            exit 1
+        fi
+        PROMETHEUS_ACCESS_TOKEN=$(run_kubectl get secret "${PROMETHEUS_SERVER_SECRET_NAME}" -n "${OPERATOR_NS}" -o jsonpath='{.data.authorizationToken}' | base64 -d)
+        if [ -z "${PROMETHEUS_ACCESS_TOKEN}" ]; then
+            echo "ERROR: The custom Prometheus secret '${PROMETHEUS_SERVER_SECRET_NAME}' in namespace '${OPERATOR_NS}' does not contain a valid 'authorizationToken' field. Please ensure the secret is correctly formatted and includes the required token." >&2
+            exit 1
+        fi
+    fi
+}
+
+# Check if URL is in Kubernetes service format
+is_cluster_service() {
+    prom_url="$1"
+    if echo "${prom_url}" | grep -qE '^[a-z0-9-]+/[a-z0-9-]+(:[0-9]+)?$'; then
+        # Custom namespace/service format
+        # Format 1: namespace/service:port (e.g., monitoring/prometheus-k8s:9090)
+        return 0
+    elif echo "${prom_url}" | grep -qE '\.(svc|svc\.cluster\.local)(:[0-9]+)?(/|$)'; then
+        # Standard Kubernetes service DNS format
+        # Format 2: service.namespace.svc:port (e.g., prometheus-k8s.monitoring.svc:9090)
+        # Format 3: service.namespace.svc.cluster.local:port
+        return 0
+    fi
+    return 1
+}
+
+# Parse namespace, service name and port from the Kubernetes service format url
+parse_in_cluster_prometheus_services_url() {
+    prom_url="$1"
+    if ! is_cluster_service "${prom_url}"; then
+        return 1
+    fi
+
+    echo "Parsing namespace, service name and port from the Kubernetes service format url: ${prom_url}"
+    if echo "${prom_url}" | grep -qE '^[a-z0-9-]+/[a-z0-9-]+(:[0-9]+)?$'; then
+        # Format 1: namespace/service:port (e.g., monitoring/prometheus-k8s:9090)
+        namespace=$(echo "${prom_url}" | cut -d'/' -f1)
+        service=$(echo "${prom_url}" | cut -d'/' -f2 | cut -d':' -f1)
+        port=$(echo "${prom_url}" | grep -oE ':[0-9]+$' | tr -d ':')
+    else
+        # Format 2: service.namespace.svc:port (e.g., prometheus-k8s.monitoring.svc:9090)
+        # Format 3: service.namespace.svc.cluster.local:port
+
+        # Remove protocol if present
+        url_no_proto="${prom_url#http://}"
+        url_no_proto="${url_no_proto#https://}"
+        
+        # Extract hostname (before any / or ?)
+        hostname=$(echo "${url_no_proto}" | cut -d'/' -f1 | cut -d'?' -f1)
+
+        # Extract service name (first part before first dot)
+        service=$(echo "${hostname}" | cut -d'.' -f1)
+        
+        # Extract namespace (second part)
+        namespace=$(echo "${hostname}" | cut -d'.' -f2)
+                
+        # Extract port if present in hostname
+        if echo "${hostname}" | grep -q ':'; then
+            port=$(echo "${hostname}" | grep -oE ':[0-9]+' | tr -d ':')
+            # Remove port from service name if it was included
+            service=$(echo "${service}" | cut -d':' -f1)
+        fi
+    fi
+
+    # Set default port if not specified
+    if [ -z "${port}" ]; then
+        if echo "${prom_url}" | grep -q "^https://"; then
+            port="443"
+        else
+            port="9090"  # Default Prometheus port
+        fi
+    fi
+
+    PROMETHEUS_NS="${namespace}"
+    PROMETHEUS_PORT="${port}"
+    PROMETHEUS_SERVICES_NAME="${service}"
+}
+
+# Port-forward the Prometheus service if not open
+port_forward_prometheus_svc() {
+    service_namespace="$1"
+    service_name="$2"
+    target_port="$3"
+
+    # Prometheus port-forward already opened
+    if [ -n "${PORT_FORWARD_PID}" ]; then
+        return
+    fi
+
+    # Valid if parsed service exists
+    if ! run_kubectl get ns "${service_namespace}" > /dev/null 2>&1; then
+        echo "ERROR: The namespace '${service_namespace}' extracted from the provided cluster URL does not exist. Please verify the URL format and ensure the namespace is valid before re-running the script." >&2
+        exit 1
+    elif ! run_kubectl get svc "${service_name}" -n "${service_namespace}" > /dev/null 2>&1; then
+        echo "ERROR: The service '${service_name}' extracted from the provided cluster URL does not exist in namespace '${service_namespace}'. Please confirm that the service name and namespace in the URL are correct and try again." >&2
+        exit 1
+    fi
+
+    # Valid if parsed port exists"
+    if ! run_kubectl -n "${service_namespace}" get "svc/${service_name}" \
+        -o jsonpath='{.spec.ports[?(@.port=='"${target_port}"')].port}' \
+        | grep "${target_port}"  > /dev/null 2>&1; then
+        echo "ERROR: The port '${target_port}' extracted from the provided cluster URL is not defined in the service '${service_name}' within namespace '${service_namespace}'. Please verify that the URL includes a valid service port and ensure the service is configured with this port before re-running the script." >&2
+        exit 1
+    fi
+
+    # Port-forward the Prometheus service
+    tmpfile=$(mktemp)
+    run_kubectl port-forward -n "${service_namespace}" service/"${service_name}" :"${target_port}" >"${tmpfile}" 2>&1 &
+    sleep 2
+
+    PORT_FORWARD_PID=$(pgrep -f "port-forward -n ${service_namespace} service/${service_name} :${target_port}" | head -n1)
+    PORT_FORWARD_PORT=$(sed -n 's/.*127\.0\.0\.1:\([0-9]*\).*/\1/p' "$tmpfile")
+    rm "${tmpfile}"
+
+    echo "Prometheus port-forward process pid: ${PORT_FORWARD_PID}"
+    echo "Prometheus port-forward port: ${PORT_FORWARD_PORT}"
+}
+
+# Kill port-forward process if it is running
+kill_prometheus_svc_process() {
+    # Stop skill port-forward if it is not running
+    if [ -z "${PORT_FORWARD_PID}" ]; then
+        return
+    fi
+
+    echo "Killing Prometheus server port-forward process: ${PORT_FORWARD_PID}..."
+    kill "${PORT_FORWARD_PID}" 2>/dev/null
+    wait "${PORT_FORWARD_PID}" 2>/dev/null
+    unset PORT_FORWARD_PID
+}
+
+# Check if should skip Prometheus connection check
+should_skip_prometheus_check() {
+    prom_url="$1"
+    prom_token="$2"
+    if [ -z "${prom_url}" ] || [ -z "${prom_token}" ]; then
+        echo "ERROR: No cluster URL was provided and a Prometheus access token could not be retrieved from any available method. Please supply a valid cluster URL or provide a Prometheus access token before running the script." >&2
+        exit 1
+    fi
+}
+
+# Verify Prometheus token is valid and test the provided Promql query
+verify_prometheus_query_and_connection() {
+    prom_url="$1"
+    prom_token="$2"
+    query="$3"
+
+    should_skip_prometheus_check "${prom_url}" "${prom_token}"
+
+    # Verify Prometheus query is provided
+    response_body=$(mktemp)
+    if [ -z "${query}" ]; then
+        http_status=$(curl -sS -k "${prom_url}/api/v1/status/runtimeinfo" \
+            --header "Authorization: Bearer ${prom_token}" \
+            -o "${response_body}" \
+            -w "%{http_code}" \
+            --connect-timeout 5 --max-time 10)
+    else
+        http_status=$(curl -sS -k "${prom_url}/api/v1/query" \
+            --header "Authorization: Bearer ${prom_token}" \
+            -G --data-urlencode "query=${query}" \
+            -o "${response_body}" \
+            -w "%{http_code}" \
+            --connect-timeout 5 --max-time 10)
+    fi
+    
+    # Extract Prometheus response status and errors
+    rc=$?
+    body=$(cat "${response_body}")
+    error_type=$(printf "%s" "$body" | sed -n 's/.*"errorType":"\([^"]*\)".*/\1/p')
+    error_msg=$(printf "%s" "$body" | sed -n 's/.*"error":"\([^"]*\)".*/\1/p')
+    rm -f "${response_body}"
+
+    # Verify Prometheus request succeed or not
+    if [ ${rc} -ne 0 ]; then
+        echo "ERROR: Failed to connect to the Prometheus endpoint due to a network or connection error." >&2
+        return 1
+    elif [ "${http_status}" = "000" ]; then
+        echo "The Prometheus server returned no data. Please verify that the server is reachable and responding correctly." >&2
+        return 1
+    elif [ "${http_status}" = "401" ]; then
+        echo "ERROR(${http_status}): Unauthorized access to the Prometheus server as the access token is invalid or expired. The access token obtained from the user-provided input or custom secret is invalid or does not grant sufficient permissions." >&2
+        return 1
+    elif [ "${http_status}" != "200" ]; then
+        echo "WARNING: The Prometheus request failed."
+        echo "  Status Code: ${http_status}"
+        echo "  Error type: ${error_type}"
+        echo "  Message: ${error_msg:-"${body}"}"
+        if [ -n "${query}" ]; then
+            echo "  PromQL query: ${query}"
+        fi
+        echo ""
+        return 1
+    fi
+
+    return 0
+}
+
+# Test Prometheus server connection
+verify_prometheus_connection() {
+    url="$1"
+    token="$2"
+
+    should_skip_prometheus_check "${url}" "${token}"
+    
+    echo "Verifying Prometheus server connection to ${url}..."
+    if is_cluster_service "${url}"; then 
+        # Parse cluster service URL to extract namespace, service, and port
+        parse_in_cluster_prometheus_services_url "${url}"
+
+        # Open port-forward to Prometheus service and handle the port-forward process after execution
+        if port_forward_prometheus_svc "${PROMETHEUS_NS}" "${PROMETHEUS_SERVICES_NAME}" "${PROMETHEUS_PORT}"; then
+            # Set the port-forward URL
+            PORT_FORWARD_URL="http://localhost:${PORT_FORWARD_PORT}"
+            if echo "${url}" | grep -E "^https://" > /dev/null 2>&1; then
+                PORT_FORWARD_URL="https://localhost:${PORT_FORWARD_PORT}" 
+            fi
+            trap 'kill_prometheus_svc_process '"${PORT_FORWARD_PID}"'' EXIT
+        fi
+    else
+        echo "Prometheus server URL is in public URL format, verifying connection using curl directly..."
+    fi
+
+    # Verify Prometheus server connection using curl
+    if verify_prometheus_query_and_connection "${PORT_FORWARD_URL:-${url}}" "${token}"; then 
+        echo "SUCCESS: Successfully connected to the Prometheus server at '${url}'."
+    else
+        echo "Unable to reach the Prometheus server at '${url}'."
+        echo ""
+        echo "Possible Causes:"
+        echo "  - The provided URL is incorrect."
+        echo "  - The Prometheus service is not running or not reachable."
+        echo "  - A network or curl-related issue occurred (see details above)."
+        echo "  - The provided access token is invalid or expired."
+        echo ""
+        echo "Next Steps:"
+        echo "  - Verify that the URL is correct and reachable."
+        echo "  - Confirm that the Prometheus service is running and accessible."
+        echo "  - Check the error details above for curl or network-related issues."
+        echo "  - Review the IBM documentation https://www.ibm.com/docs/en/tarm/latest?topic=prometheus-enabling-metrics-collection-prometurbo for additional guidance."
+        echo ""
+        exit 1
+    fi
+}
+
+# Function to verify if the Promql defined in PQM object is valid or not
+verify_promql_in_pqm() {
+    prom_url="$1"
+    prom_token="$2"
+
+    should_skip_prometheus_check "${prom_url}" "${prom_token}"
+
+    if [ -z "${PROMETHEUS_QUERY_MAPPING_CR}" ]; then
+        echo "WARNING: PQM CR is not provided. Skip PromQL queries verifications."
+        return 1
+    fi
+
+    # Verify PQM CR Promql queries
+    echo "Verifying PQM CR Promql queries..."
+    tmpfile=$(mktemp)
+    echo "${PROMETHEUS_QUERY_MAPPING_CR}" | run_kubectl apply -f - --dry-run=client -ojsonpath='{range .spec.entities[*]}{range .metrics[*]}{range .queries[*]}{.promql}{"\n"}{end}{end}{end}' > "${tmpfile}"
+
+    error_count=0
+    while IFS= read -r query; do
+        if [ -z "${query}" ]; then
+            continue
+        elif ! verify_prometheus_query_and_connection "${PORT_FORWARD_URL:-${prom_url}}" "${prom_token}" "${query}"; then 
+            error_count=$((error_count + 1))
+        fi
+    done < "${tmpfile}"
+    rm -rf "${tmpfile}"
+
+    if [ "${error_count}" -gt 0 ]; then
+        echo "ACTION REQUIRED: One or more PromQL queries are invalid or failed during validation."
+        echo ""
+        echo "Please return to the UI page, update your PromQL queries, regenerate the installation script,"
+        echo "and re-run the script to continue the setup process."
+        echo ""
+        exit 1
+    fi
 }
 
 # Function to create or update the PrometheusServerConfig CR
@@ -573,11 +896,6 @@ createORupdate_psc_cr() {
         else
             run_kubectl delete PrometheusServerConfig "${PSC_NAME}" --namespace="${OPERATOR_NS}" --ignore-not-found
         fi
-        return
-    fi
-
-    if [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${NONE_APPROACH}" ]; then
-        echo "No Prometheus server URL provided, skipping the creation of PrometheusServerConfig CR"
         return
     fi
 
@@ -625,22 +943,6 @@ createORupdate_promethues_secret() {
             run_kubectl delete secret "${PROMETHEUS_SERVER_SECRET_NAME}" --namespace="${OPERATOR_NS}" --ignore-not-found
         fi
         return
-    fi
-
-    if [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${NONE_APPROACH}" ]; then
-        # Skip setting Prometheus server if the prometheus server URL is not provided.
-        echo "No Prometheus server URL provided, skipping the creation of Prometheus server secret"
-        return
-    elif [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${CUSTOMSECRET_APPROACH}" ]; then
-        # If the secret name is customized, use the provided secret to connect to the Prometheus server.
-        echo "Custom Prometheus server secret name is set, ensure the secret ${PROMETHEUS_SERVER_SECRET_NAME} is created in the ${OPERATOR_NS} namespace with the correct authorization token for accessing the Prometheus server."
-        return
-    elif [ "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" = "${SERVICEACCOUNT_APPROACH}" ]; then
-        # Create or update the default secret with the provided token.
-        PROMETHEUS_ACCESS_TOKEN=$(run_kubectl -n "${PROMETHEUS_SERVERACCOUNT_NS}" create token "${PROMETHEUS_SERVERACCOUNT_NAME}" --duration=87600h)
-    else
-        # Fallback to ask user to input the token in the terminal.
-        echo "No Prometheus access token provided, please enter the token with access to the Prometheus server: " && read -r PROMETHEUS_ACCESS_TOKEN
     fi
 
     if [ -z "${PROMETHEUS_ACCESS_TOKEN}" ]; then
