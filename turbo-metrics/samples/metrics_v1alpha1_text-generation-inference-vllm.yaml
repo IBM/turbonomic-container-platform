@@ -1,0 +1,121 @@
+# Monitors Virtual Large Language Model Servers (vLLMs).
+# Depending on your configuration, you might have to modify labels if you have customized them
+# from the defaults.
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusQueryMapping
+metadata:
+  name: virtual-large-language-model
+  labels:
+    mapping: virtual-large-language-model
+spec:
+  entities:
+  - type: application
+    attributes:
+    - label: container
+      name: container
+    - isIdentifier: true
+      label: instance
+      matches: \d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})??
+      name: ip
+    - label: namespace
+      name: namespace
+    - label: pod
+      name: pod
+    # If service is not available please use the below for service.
+    # This tries to guess the service by looking at the pod name.
+    # If your pod does not follow this convention, then this method
+    # will not work.
+    # This regex uses 2 sub regex patterns to catch service name
+    # 1.(.*)-[a-f0-9]{10}-[a-z0-9]{5}$
+    #   This will match when deployment/service name <47 chars where 
+    #   kubernetes doesn't do any name shortening before naming pods. 
+    #   [a-f0-9]{10} checks for replicaset hash, which is 10 chars
+    #   when there's no shortening.
+    #   [a-z0-9]{5}$ checks for pod hash which is always present at the
+    #   last 5 chars.
+    # 2.(.*)-[a-f0-9]{0,10}[a-z0-9]{5}$
+    #   If deployment/service name >= 47 and <=57 chars, kubernetes 
+    #   truncates hyphens, replicaset hash and then deployment, so as to adhere 
+    #   to 63 character limit for pod.
+    #   [a-f0-9]{0,10}[a-z0-9]{5}$ checks for merged replicaset hash, pod hash
+    #   when there's no hyphens present between both hashes.
+    # 1 and 2 both won't work if deployment is > 57 chars.
+    #- label: pod
+    #  as: service
+    #  name: service
+    #  matches: (.*)-[a-f0-9]{10}-[a-z0-9]{5}$|(.*)-[a-f0-9]{0,10}[a-z0-9]{5}$
+    - label: service
+      name: service
+    # If service is not available please use the below for service.
+    # This tries to guess the service by looking at the pod name.
+    # If your pod does not follow this convention, then this method
+    # will not work.
+    # This regex uses 2 sub regex patterns to catch service name
+    # 1.(.*)-[a-f0-9]{10}-[a-z0-9]{5}$
+    #   This will match when deployment/service name <47 chars where 
+    #   kubernetes doesn't do any name shortening before naming pods. 
+    #   [a-f0-9]{10} checks for replicaset hash, which is 10 chars
+    #   when there's no shortening.
+    #   [a-z0-9]{5}$ checks for pod hash which is always present at the
+    #   last 5 chars.
+    # 2.(.*)-[a-f0-9]{0,10}[a-z0-9]{5}$
+    #   If deployment/service name >= 47 and <=57 chars, kubernetes 
+    #   truncates hyphens, replicaset hash and then deployment, so as to adhere 
+    #   to 63 character limit for pod.
+    #   [a-f0-9]{0,10}[a-z0-9]{5}$ checks for merged replicaset hash, pod hash
+    #   when there's no hyphens present between both hashes.
+    # 1 and 2 both won't work if deployment is > 57 chars.     
+    #- label: pod
+    #  as: service_name
+    #  name: service_name
+    #  matches: (.*)-[a-f0-9]{10}-[a-z0-9]{5}$|(.*)-[a-f0-9]{0,10}[a-z0-9]{5}$
+    - label: service
+      name: service_name
+    - label: namespace
+      name: service_ns
+    metrics:
+    - type: transaction
+      queries:
+      - type: used
+        # The vLLM portion exhibits the "X + Y OR Z == 0" pattern.  "X + Y" is the total number of tokens, while "Z" is
+        # the number of successful requests which is used to ensures proper handling of the zero-transaction scenario
+        # in which case we'd want this query to return 0.  However, the "token count" metric will not be 0; instead, it
+        # will be unavailable as there are no requests to count the tokens.  To address this, we append the expression
+        # with the "OR Z == 0" tail, which will return 0 because the request count is 0.
+        # Note: it is theoretically impossible that the request count is non-zero and the token count is unavailable.
+        promql: rate(vllm:prompt_tokens_total{}[10m]) + rate(vllm:generation_tokens_total{}[10m])
+          OR rate(vllm:request_success_total{}[30m]) == 0
+    - type: queuingTime
+      queries:
+      - type: used
+        # The 99th-percentile of queuing time in milliseconds over the past 30 minutes
+        # If there are zero observations over the 30 minutes, then the value 0 will be returned.
+        promql: 1000 * (sum by (container, instance, namespace, pod, model_name) (rate(vllm:request_success_total{}[30m]) == 0)
+          OR (histogram_quantile(0.99, sum by (le, container, instance, namespace, pod, model_name) (rate(vllm:request_queue_time_seconds_bucket{}[30m])))))
+    - type: responseTime
+      queries:
+      - type: used
+        # The 99th-percentile of response time in milliseconds over the past 30 minutes
+        # This query will return nothing (missing data) if there are zero observations, which we think is the
+        # correct behavior because without any requests recorded we can't really measure the response time which is
+        # certainly not zero.
+        promql: 1000 * (histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket{}[30m])))
+    - type: serviceTime
+      queries:
+      - type: used
+        # The 99th-percentile of "service"" time in milliseconds over the past 30 minutes.  "serviceTime" measures the
+        # TPOT (time-per-output-token).
+        # This query will return nothing (missing data) when there are zero observations during the period, which we
+        # think is the correct behavior because without any requests recorded we can't really measure the service time
+        # which is certainly not zero.
+        promql: 1000 * (histogram_quantile(0.99, rate(vllm:time_per_output_token_seconds_bucket{}[30m])))
+    - type: concurrentQueries
+      queries:
+      - type: used
+        # A similar "A >= B OR B OR C == 0" as above to retrieve the current batch size, with a 0 value under the
+        # scenario of zero-transaction.
+        promql: avg_over_time(vllm:num_requests_running{}[10m]) OR rate(vllm:request_success_total{}[30m]) == 0
+    - type: llmCache
+      queries:
+      - type: used
+        promql: avg_over_time(vllm:gpu_cache_usage_perc{}[10m])
