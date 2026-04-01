@@ -1515,6 +1515,10 @@ spec:
               configHash:
                 description: Hash of the constructed turbo.config file
                 type: string
+              kubeturboOperatorVersion:
+                description: The version of the Kubeturbo operator that last successfully
+                  reconciled this resource
+                type: string
               lastUpdatedTimestamp:
                 description: Timestamp of the last sync up
                 type: string
