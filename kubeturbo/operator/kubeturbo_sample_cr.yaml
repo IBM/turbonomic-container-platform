@@ -25,12 +25,12 @@ spec:
 
   image:
     repository: icr.io/cpopen/turbonomic/kubeturbo
-    tag: "8.19.3"
+    tag: "8.19.4"
     # imagePullSecret: ""
     # Uncomment to use an image from RHCC for cpu-frequency getter job - predefined in OCP Operator Hub version
     # cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-    # For Kubeturbo version 8.19.3+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
-    # cpufreqgetterImageTag: "8.19.3"
+    # For Kubeturbo version 8.19.4+, the cpufreqgetterImageTag will default to align with the Kubeturbo version will use latest otherwise
+    # cpufreqgetterImageTag: "8.19.4"
 
   # Assigning Kubeturbo to node, see 
   # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/ 
@@ -118,17 +118,21 @@ spec:
     - openshift-.*
     - cattle.*
   # List operator-controlled workloads by name or namespace (using regular expressions)
-  # that should be excluded from the operator-controlled WorkloadController resize policy. 
+  # that should be excluded from the operator-controlled WorkloadController resize policy.
   # By default, matching workloads will generate actions that are not in Recommend mode.
   # exclusionDetectors:
     # A list of regular expressions representing operator-controlled Workload Controllers.
-    # operatorControlledNamespacePatterns: 
+    # operatorControlledNamespacePatterns:
     # - example-.*
     # - .*-example
-    # A list of regular expressions representing namespaces containing operator-controlled 
-    # Workload Controllers. 
+    # A list of regular expressions representing namespaces containing operator-controlled
+    # Workload Controllers.
     # operatorControlledWorkloadsPatterns:
     # - .*-example.*
+    # A list of regular expression patterns to exclude workload controllers from OOM recovery actions.
+    # oomRecoveryExcludedWorkloads:
+    # - ml-.*
+    # - .*-training-.*
   # Policy Settings controls the automatically generated policies for certain types of workloads
   # To disable action generation for resizing injected sidecars, uncomment this section
   # policySettings:

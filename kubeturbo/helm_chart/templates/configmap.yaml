@@ -82,7 +82,8 @@ data:
       },
       "exclusionDetectors": {
         "operatorControlledWorkloadsPatterns": {{ $exclusionDetectors.operatorControlledWorkloadsPatterns | default list | toJson }},
-        "operatorControlledNamespacePatterns": {{ $exclusionDetectors.operatorControlledNamespacePatterns | default list | toJson }}
+        "operatorControlledNamespacePatterns": {{ $exclusionDetectors.operatorControlledNamespacePatterns | default list | toJson }},
+        "oomRecoveryExcludedWorkloads": {{ $exclusionDetectors.oomRecoveryExcludedWorkloads | default list | toJson }}
       },
       "daemonPodDetectors": {
         "namespaces": {{ .Values.daemonPodDetectors.namespacePatterns | default list | toJson }},
