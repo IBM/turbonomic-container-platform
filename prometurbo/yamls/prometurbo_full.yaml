@@ -6,13 +6,13 @@ metadata:
   # Provide a value for name.
   # Update the namespace value if required.
   name: prometurbo
-  Namespace: turbonomic
+  namespace: turbonomic
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: turbonomic-credentials
-  Namespace: turbonomic
+  namespace: turbonomic
 type: Opaque
 data:
   clientid: <BASE64encodedValue>
@@ -45,7 +45,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: prometurbo
-    Namespace: turbonomic
+    namespace: turbonomic
 roleRef:
   # User creating this resource must have permissions to add this policy to the SA
   kind: ClusterRole
@@ -57,7 +57,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: prometurbo-role
-  Namespace: turbonomic
+  namespace: turbonomic
 rules:
 - apiGroups: 
     - ""
@@ -87,7 +87,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: prometurbo-rolebinding
-  Namespace: turbonomic
+  namespace: turbonomic
 subjects:
 - kind: ServiceAccount
   name: prometurbo
@@ -100,7 +100,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometurbo
-  Namespace: turbonomic
+  namespace: turbonomic
   labels:
     app.kubernetes.io/name: prometurbo
 spec:
@@ -120,7 +120,7 @@ spec:
       containers:
         - name: prometurbo
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/prometurbo:8.19.3
+          image: icr.io/cpopen/turbonomic/prometurbo:8.19.4
           imagePullPolicy: IfNotPresent
           args:
             - --v=2
@@ -141,7 +141,7 @@ spec:
                 - ALL
         - name: turbodif
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/turbodif:8.19.3
+          image: icr.io/cpopen/turbonomic/turbodif:8.19.4
           imagePullPolicy: IfNotPresent
           env:
             # Do not change the following environment variable
@@ -187,13 +187,13 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: turbodif-config
-  Namespace: turbonomic
+  namespace: turbonomic
 data:
   turbodif-config.json: |-
     {
       "communicationConfig": {
         "serverMeta": {
-          "version": "8.19.3",
+          "version": "8.19.4",
           "turboServer": "https://<Turbo_server_URL>"
         },
         "restAPIConfig": {
@@ -221,7 +221,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometurbo-config
-  Namespace: turbonomic
+  namespace: turbonomic
 data:
   businessapp.config: |-
     # This configuration defines business applications and their associated business transactions

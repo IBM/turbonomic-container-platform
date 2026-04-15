@@ -114,6 +114,7 @@ PROMETHEUS_SERVER_CONNECTION_APPROACH=""
 PROMETHEUS_NS=""
 PROMETHEUS_PORT=""
 PROMETHEUS_SERVICES_NAME=""
+INTERNAL_URL_MAPPING_SOURCE=""
 
 PORT_FORWARD_PID=""
 PORT_FORWARD_URL=""
@@ -124,7 +125,7 @@ PORT_FORWARD_PORT=""
 dependencies_check() {
     echo "Validating necessary tools on the machine..."
     missing_dependencies=""
-    for dependency in ${DEPENDENCY_LIST}; do 
+    for dependency in ${DEPENDENCY_LIST}; do
         dependency_path=$(command -v "${dependency}")
         if ! [ -x "${dependency_path}" ]; then
             if [ -z "${missing_dependencies}" ]; then
@@ -135,7 +136,7 @@ dependencies_check() {
         fi
     done
 
-    if [ -n "${missing_dependencies}" ]; then 
+    if [ -n "${missing_dependencies}" ]; then
         missing_dependencies_str=$(echo "$missing_dependencies" | sed 's/ /, /g')
         echo "ERROR: Missing the required command: ${missing_dependencies_str}"
         echo "Please refer to the official documentation or use your package manager to install them."
@@ -183,7 +184,7 @@ validate_args() {
     if [ "${PRIVATE_REGISTRY_PREFIX}" = "" ]; then
         PRIVATE_REGISTRY_PREFIX=$(echo "${PROMETURBO_REGISTRY}" | sed "s|\/${DEFAULT_PROMETURBO_IMG_REPO}$||g")
     fi
-    
+
     # Determine if the private registry is applied or not
     if [ "${PRIVATE_REGISTRY_PREFIX}" != "${DEFAULT_REGISTRY_PREFIX}" ]; then
         PRIVATE_REGISTRY_ENABLED="true"
@@ -220,7 +221,7 @@ normalize_target_cluster_type() {
 
 # Function to handle base64 encoded secret
 password_secret_handler() {
-    if [ "${PWD_SECRET_ENCODED}" = "true" ]; then 
+    if [ "${PWD_SECRET_ENCODED}" = "true" ]; then
         echo "$1" | base64 -d
     else
         echo "$1"
@@ -341,10 +342,10 @@ cluster_type_check() {
     current_context=$(run_kubectl config current-context)
     current_oc_cluster_type=$(auto_detect_cluster_type)
     TARGET_SUBTYPE=$(normalize_target_cluster_type "${TARGET_SUBTYPE}")
-    if [ "${current_oc_cluster_type}" != "${TARGET_SUBTYPE}" ]; then 
+    if [ "${current_oc_cluster_type}" != "${TARGET_SUBTYPE}" ]; then
         echo "Your current cluster type [${current_oc_cluster_type}] mismatches with the target type [${TARGET_SUBTYPE}] you specified from the UI!"
         echo "Do you want to continue the installation as the [${current_oc_cluster_type}] target? [y/N]: " && read -r allowMismatch
-        if [ "${allowMismatch}" = "y" ] || [ "${allowMismatch}" = "Y" ]; then 
+        if [ "${allowMismatch}" = "y" ] || [ "${allowMismatch}" = "Y" ]; then
             TARGET_SUBTYPE="${current_oc_cluster_type}"
         else
             echo "Please double check your current Kubernetes context before the other try!" && exit 1
@@ -371,7 +372,7 @@ createORupdate_namespace() {
     namespace=${1:-"${OPERATOR_NS}"}
     if ! run_kubectl get ns "${namespace}" -o name > /dev/null 2>&1; then
         echo "Creating ${namespace} namespace..."
-        run_kubectl create ns "${namespace}" --dry-run=client -o yaml | run_kubectl apply -f - 
+        run_kubectl create ns "${namespace}" --dry-run=client -o yaml | run_kubectl apply -f -
     fi
 }
 
@@ -384,12 +385,12 @@ createORupdate_operatorgroup() {
     if [ "${TARGET_SUBTYPE}" != "${OCP_TYPE}" ]; then return; fi
 
     # There is a restriction on the operator that enforced single OperatorGroup per namespace
-    # This function shall create one if it's not exists or reuse it if it's already existed 
+    # This function shall create one if it's not exists or reuse it if it's already existed
     op_gp_count=$(run_kubectl -n "${namespace}" get OperatorGroup -o name | wc -l)
-    if [ "${action}" != "delete" ] && [ "${op_gp_count}" -eq 1 ]; then 
+    if [ "${action}" != "delete" ] && [ "${op_gp_count}" -eq 1 ]; then
         echo "Operator group already exists in the ${namespace} namespace, no need to create new one."
         return
-    elif [ "${op_gp_count}" -gt 1 ]; then 
+    elif [ "${op_gp_count}" -gt 1 ]; then
         # Error needs to be addressed by the client
         echo "ERROR: Found multiple Operator Groups in the namespace ${namespace}" >&2 && exit 1
     fi
@@ -462,7 +463,7 @@ apply_private_registry_secret() {
 
 # Function to create turbonomic-credentials secret
 createORupdate_oauth2_token() {
-    if [ "${ACTION}" != "delete" ]; then 
+    if [ "${ACTION}" != "delete" ]; then
         if [ -z "${OAUTH_CLIENT_ID}" ] || [ -z "${OAUTH_CLIENT_SECRET}" ]; then
             echo "Missing OAuth2 client settings, please gather values following the instruction: "
             echo "https://www.ibm.com/docs/en/tarm/latest?topic=cookbook-authenticating-oauth-20-clients-api"
@@ -509,7 +510,7 @@ createORupdate_prometurbo_cr() {
         fi
     fi
 
-    # Notify client to mirror which images 
+    # Notify client to mirror which images
     if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
         echo "Ensure following images get mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
         echo "- ${DEFAULT_REGISTRY_PREFIX}/${DEFAULT_PROMETURBO_IMG_REPO}:${PROMETURBO_VERSION}"
@@ -615,16 +616,41 @@ fetch_prometheus_token() {
 # Check if URL is in Kubernetes service format
 is_cluster_service() {
     prom_url="$1"
+
+    # Return success if URL has already been classified as a cluster service
+    if [ -n "${INTERNAL_URL_MAPPING_SOURCE}" ]; then
+        return 0
+    fi
+
+    # Check if URL is in Kubernetes service format
     if echo "${prom_url}" | grep -qE '^[a-z0-9-]+/[a-z0-9-]+(:[0-9]+)?$'; then
         # Custom namespace/service format
         # Format 1: namespace/service:port (e.g., monitoring/prometheus-k8s:9090)
+        INTERNAL_URL_MAPPING_SOURCE="SERVICE"
         return 0
     elif echo "${prom_url}" | grep -qE '\.(svc|svc\.cluster\.local)(:[0-9]+)?(/|$)'; then
         # Standard Kubernetes service DNS format
         # Format 2: service.namespace.svc:port (e.g., prometheus-k8s.monitoring.svc:9090)
         # Format 3: service.namespace.svc.cluster.local:port
+        INTERNAL_URL_MAPPING_SOURCE="SERVICE_DNS"
         return 0
     fi
+
+    # Format 4: ip:port (e.g., 10.10.10.10:9090) as internally accessible
+    host_ip=$(echo "${prom_url}" | sed -E 's|^(https?://)?([^/:]+).*|\2|')
+    if [ -n "${host_ip}" ]; then
+        if run_kubectl get svc -A -o wide | grep "${host_ip}" > /dev/null 2>&1; then
+            INTERNAL_URL_MAPPING_SOURCE="SERVICE_IP"
+            return 0
+        elif run_kubectl get endpointslice -A -o wide | grep "${host_ip}" > /dev/null 2>&1; then
+            INTERNAL_URL_MAPPING_SOURCE="ENDPOINTS_IP"
+            return 0
+        elif run_kubectl get pods -A -o wide | grep "${host_ip}" > /dev/null 2>&1; then
+            INTERNAL_URL_MAPPING_SOURCE="POD_IP"
+            return 0
+        fi
+    fi
+
     return 1
 }
 
@@ -635,35 +661,69 @@ parse_in_cluster_prometheus_services_url() {
         return 1
     fi
 
-    echo "Parsing namespace, service name and port from the Kubernetes service format url: ${prom_url}"
-    if echo "${prom_url}" | grep -qE '^[a-z0-9-]+/[a-z0-9-]+(:[0-9]+)?$'; then
+    if [ "${INTERNAL_URL_MAPPING_SOURCE}" = "SERVICE" ]; then
+        echo "Parsing namespace, service name and port from the Kubernetes service format url: ${prom_url}"
         # Format 1: namespace/service:port (e.g., monitoring/prometheus-k8s:9090)
         namespace=$(echo "${prom_url}" | cut -d'/' -f1)
         service=$(echo "${prom_url}" | cut -d'/' -f2 | cut -d':' -f1)
         port=$(echo "${prom_url}" | grep -oE ':[0-9]+$' | tr -d ':')
-    else
+    elif [ "${INTERNAL_URL_MAPPING_SOURCE}" = "SERVICE_DNS" ]; then
+        echo "Parsing namespace, service name and port from the Kubernetes service format url: ${prom_url}"
         # Format 2: service.namespace.svc:port (e.g., prometheus-k8s.monitoring.svc:9090)
         # Format 3: service.namespace.svc.cluster.local:port
 
         # Remove protocol if present
         url_no_proto="${prom_url#http://}"
         url_no_proto="${url_no_proto#https://}"
-        
+
         # Extract hostname (before any / or ?)
         hostname=$(echo "${url_no_proto}" | cut -d'/' -f1 | cut -d'?' -f1)
 
         # Extract service name (first part before first dot)
         service=$(echo "${hostname}" | cut -d'.' -f1)
-        
+
         # Extract namespace (second part)
         namespace=$(echo "${hostname}" | cut -d'.' -f2)
-                
+
         # Extract port if present in hostname
         if echo "${hostname}" | grep -q ':'; then
             port=$(echo "${hostname}" | grep -oE ':[0-9]+' | tr -d ':')
             # Remove port from service name if it was included
             service=$(echo "${service}" | cut -d':' -f1)
         fi
+    elif [ "${INTERNAL_URL_MAPPING_SOURCE}" = "SERVICE_IP" ]; then
+        # There must be a fetch since we check that the service IP is in the list
+        host_ip=$(echo "${prom_url}" | sed -E 's|^(https?://)?([^/:]+).*|\2|')
+
+        echo "Fetching namespace, service name and port from the Kubernetes service ip: ${host_ip}"
+        match=$(run_kubectl get svc -A -o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{" "}{.spec.clusterIP}{"\n"}{end}' | grep "${host_ip}" | head -n1)
+
+        namespace=$(echo "${match}" | awk '{print $1}')
+        service=$(echo "${match}" | awk '{print $2}')
+        port=$(echo "${prom_url}" | grep -oE ':[0-9]+$' | tr -d ':')
+    elif [ "${INTERNAL_URL_MAPPING_SOURCE}" = "ENDPOINTS_IP" ]; then
+        # There must be a fetch since we check that the endpoint IP is in the list
+        host_ip=$(echo "${prom_url}" | sed -E 's|^(https?://)?([^/:]+).*|\2|')
+
+        echo "Fetching namespace, service name and port from the Kubernetes EndpointSlice ip: ${host_ip}"
+        match=$(run_kubectl get endpointslice -A -o wide | grep "${host_ip}" | head -n1)
+
+        namespace=$(echo "${match}" | awk '{print $1}')
+        endpointslice_name=$(echo "${match}" | awk '{print $2}')
+
+        # Use the endpointslice name to get the upstream service name
+        service=$(run_kubectl -n "${namespace}" get endpointslice "${endpointslice_name}" -o=jsonpath='{.metadata.labels.kubernetes\.io/service-name}')
+        port=$(echo "${prom_url}" | grep -oE ':[0-9]+$' | tr -d ':')
+    elif [ "${INTERNAL_URL_MAPPING_SOURCE}" = "POD_IP" ]; then
+        # There must be a fetch since we check that the pod IP is in the list
+        host_ip=$(echo "${prom_url}" | sed -E 's|^(https?://)?([^/:]+).*|\2|')
+
+        echo "Fetching namespace, pod name and port from the Kubernetes Pod ip: ${host_ip}"
+        match=$(run_kubectl get pod -A -o wide | grep "${host_ip}" | head -n1)
+
+        namespace=$(echo "${match}" | awk '{print $1}')
+        service=$(echo "${match}" | awk '{print $2}')
+        port=$(echo "${prom_url}" | grep -oE ':[0-9]+$' | tr -d ':')
     fi
 
     # Set default port if not specified
@@ -673,6 +733,12 @@ parse_in_cluster_prometheus_services_url() {
         else
             port="9090"  # Default Prometheus port
         fi
+    fi
+
+    # Fail if the root service cannot be found
+    if [ -z "${service}" ]; then
+        echo "ERROR: Unable to extract service/pod name from URL: ${prom_url}" >&2
+        exit 1
     fi
 
     PROMETHEUS_NS="${namespace}"
@@ -686,36 +752,59 @@ port_forward_prometheus_svc() {
     service_name="$2"
     target_port="$3"
 
-    # Prometheus port-forward already opened
+    # Prometheus port-forward already open
     if [ -n "${PORT_FORWARD_PID}" ]; then
         return
+    fi
+
+    target_name="service/${service_name}"
+    if [ "${INTERNAL_URL_MAPPING_SOURCE}" = "POD_IP" ]; then
+        target_name="pod/${service_name}"
     fi
 
     # Valid if parsed service exists
     if ! run_kubectl get ns "${service_namespace}" > /dev/null 2>&1; then
         echo "ERROR: The namespace '${service_namespace}' extracted from the provided cluster URL does not exist. Please verify the URL format and ensure the namespace is valid before re-running the script." >&2
         exit 1
-    elif ! run_kubectl get svc "${service_name}" -n "${service_namespace}" > /dev/null 2>&1; then
-        echo "ERROR: The service '${service_name}' extracted from the provided cluster URL does not exist in namespace '${service_namespace}'. Please confirm that the service name and namespace in the URL are correct and try again." >&2
+    elif ! run_kubectl get "${target_name}" -n "${service_namespace}" > /dev/null 2>&1; then
+        echo "ERROR: The '${target_name}' extracted from the provided cluster URL does not exist in namespace '${service_namespace}'. Please confirm that the target and namespace in the URL are correct and try again." >&2
         exit 1
     fi
 
-    # Valid if parsed port exists"
-    if ! run_kubectl -n "${service_namespace}" get "svc/${service_name}" \
-        -o jsonpath='{.spec.ports[?(@.port=='"${target_port}"')].port}' \
-        | grep "${target_port}"  > /dev/null 2>&1; then
-        echo "ERROR: The port '${target_port}' extracted from the provided cluster URL is not defined in the service '${service_name}' within namespace '${service_namespace}'. Please verify that the URL includes a valid service port and ensure the service is configured with this port before re-running the script." >&2
-        exit 1
+    # Valid if parsed port exists on the service type
+    if [ "${INTERNAL_URL_MAPPING_SOURCE}" != "POD_IP" ]; then
+        if ! run_kubectl -n "${service_namespace}" get "${target_name}" \
+            -o jsonpath='{.spec.ports[?(@.port=='"${target_port}"')].port}' \
+            | grep "${target_port}"  > /dev/null 2>&1; then
+            echo "ERROR: The port '${target_port}' extracted from the provided cluster URL is not defined in the '${target_name}' within namespace '${service_namespace}'. Please verify that the URL includes a valid service port and ensure the service is configured with this port before re-running the script." >&2
+            exit 1
+        fi
     fi
 
     # Port-forward the Prometheus service
     tmpfile=$(mktemp)
-    run_kubectl port-forward -n "${service_namespace}" service/"${service_name}" :"${target_port}" >"${tmpfile}" 2>&1 &
-    sleep 2
+    run_kubectl port-forward -n "${service_namespace}" "${target_name}" :"${target_port}" >"${tmpfile}" 2>&1 &
 
-    PORT_FORWARD_PID=$(pgrep -f "port-forward -n ${service_namespace} service/${service_name} :${target_port}" | head -n1)
+    # Wait for port-forward to be ready (max 5 seconds)
+    i=1
+    while [ "$i" -le 10 ]; do
+        if grep -q "Forwarding from" "${tmpfile}" 2>/dev/null; then
+            break
+        fi
+        sleep 0.5
+        i=$((i + 1))
+    done
+
+    PORT_FORWARD_PID=$(pgrep -f "port-forward -n ${service_namespace} ${target_name} :${target_port}" | head -n1)
     PORT_FORWARD_PORT=$(sed -n 's/.*127\.0\.0\.1:\([0-9]*\).*/\1/p' "$tmpfile")
     rm "${tmpfile}"
+
+    # Validate the port-forward port
+    if [ -z "${PORT_FORWARD_PORT}" ]; then
+        echo "ERROR: Failed to extract port-forward port from running process" >&2
+        kill_prometheus_svc_process
+        exit 1
+    fi
 
     echo "Prometheus port-forward process pid: ${PORT_FORWARD_PID}"
     echo "Prometheus port-forward port: ${PORT_FORWARD_PORT}"
@@ -768,7 +857,7 @@ verify_prometheus_query_and_connection() {
             -w "%{http_code}" \
             --connect-timeout 5 --max-time 10)
     fi
-    
+
     # Extract Prometheus response status and errors
     rc=$?
     body=$(cat "${response_body}")
@@ -807,9 +896,9 @@ verify_prometheus_connection() {
     token="$2"
 
     should_skip_prometheus_check "${url}" "${token}"
-    
+
     echo "Verifying Prometheus server connection to ${url}..."
-    if is_cluster_service "${url}"; then 
+    if is_cluster_service "${url}"; then
         # Parse cluster service URL to extract namespace, service, and port
         parse_in_cluster_prometheus_services_url "${url}"
 
@@ -818,7 +907,7 @@ verify_prometheus_connection() {
             # Set the port-forward URL
             PORT_FORWARD_URL="http://localhost:${PORT_FORWARD_PORT}"
             if echo "${url}" | grep -E "^https://" > /dev/null 2>&1; then
-                PORT_FORWARD_URL="https://localhost:${PORT_FORWARD_PORT}" 
+                PORT_FORWARD_URL="https://localhost:${PORT_FORWARD_PORT}"
             fi
             trap 'kill_prometheus_svc_process '"${PORT_FORWARD_PID}"'' EXIT
         fi
@@ -827,7 +916,7 @@ verify_prometheus_connection() {
     fi
 
     # Verify Prometheus server connection using curl
-    if verify_prometheus_query_and_connection "${PORT_FORWARD_URL:-${url}}" "${token}"; then 
+    if verify_prometheus_query_and_connection "${PORT_FORWARD_URL:-${url}}" "${token}"; then
         echo "SUCCESS: Successfully connected to the Prometheus server at '${url}'."
     else
         echo "Unable to reach the Prometheus server at '${url}'."
@@ -863,13 +952,13 @@ verify_promql_in_pqm() {
     # Verify PQM CR Promql queries
     echo "Verifying PQM CR Promql queries..."
     tmpfile=$(mktemp)
-    echo "${PROMETHEUS_QUERY_MAPPING_CR}" | run_kubectl apply -f - --dry-run=client -ojsonpath='{range .spec.entities[*]}{range .metrics[*]}{range .queries[*]}{.promql}{"\n"}{end}{end}{end}' > "${tmpfile}"
+    printf "%s" "${PROMETHEUS_QUERY_MAPPING_CR}" | run_kubectl apply -f - --dry-run=client -ojsonpath='{range .spec.entities[*]}{range .metrics[*]}{range .queries[*]}{.promql}{"\n"}{end}{end}{end}' > "${tmpfile}"
 
     error_count=0
     while IFS= read -r query; do
         if [ -z "${query}" ]; then
             continue
-        elif ! verify_prometheus_query_and_connection "${PORT_FORWARD_URL:-${prom_url}}" "${prom_token}" "${query}"; then 
+        elif ! verify_prometheus_query_and_connection "${PORT_FORWARD_URL:-${prom_url}}" "${prom_token}" "${query}"; then
             error_count=$((error_count + 1))
         fi
     done < "${tmpfile}"
@@ -955,7 +1044,7 @@ createORupdate_promethues_secret() {
         --from-literal=authorizationToken="${PROMETHEUS_ACCESS_TOKEN}" \
         --namespace="${OPERATOR_NS}" \
         --dry-run="client" -o yaml | run_kubectl "${action}" -f -
-}   
+}
 
 # Function to create or update the PrometheusQueryMapping CR
 createORupdate_pqm_cr() {
@@ -980,12 +1069,8 @@ createORupdate_pqm_cr() {
     fi
 
     # Create or update the PrometheusQueryMapping CR
-    tmp_dir=$(mktemp -d)
-    tmp_cr_path="${tmp_dir}/pqm_cr.json"
-    echo "${PROMETHEUS_QUERY_MAPPING_CR}" > "${tmp_cr_path}"
-    run_kubectl "${action}" -f "${tmp_cr_path}" ${config} -n "${OPERATOR_NS}"
-    rm -rf "${tmp_dir}"
-}   
+    printf "%s" "${PROMETHEUS_QUERY_MAPPING_CR}" | run_kubectl "${action}" -f - ${config} -n "${OPERATOR_NS}"
+}
 
 # Function to create or update the prometurbo operator in the namespace
 createORupdate_prometurbo_operator() {
@@ -1003,7 +1088,7 @@ createORupdate_prometurbo_subscription() {
         return
     fi
 
-    # To ensure the operator is installed 
+    # To ensure the operator is installed
     createORupdate_operatorgroup "${OPERATOR_NS}"
 
     select_cert_op_from_operatorhub "prometurbo"
@@ -1044,7 +1129,7 @@ createORupdate_prometurbo_subscription() {
     wait_for_deployment "${OPERATOR_NS}" "prometurbo-operator"
 }
 
-# Function to fallback OCP installation with private image repo to yaml installation 
+# Function to fallback OCP installation with private image repo to yaml installation
 handle_private_registry_fallback() {
     if [ "${PRIVATE_REGISTRY_ENABLED}" != "true" ]; then
         return 0
@@ -1058,7 +1143,7 @@ handle_private_registry_fallback() {
     echo "Would you like to proceed with the YAML approach (manual, no auto-updates)? [Y/n]: " && read -r choice
 
     ACCEPT_FALLBACK=0
-    if [ "${choice}" = "n" ] || [ "${choice}" = "N" ]; then 
+    if [ "${choice}" = "n" ] || [ "${choice}" = "N" ]; then
         echo "Please proceed to mirror the OCP catalog for OperatorHub: https://www.ibm.com/docs/en/tarm/8.16.x?topic=requirements-prometurbo-image-repository"
         echo "Press [Enter] to continue: " && read -r _
     else
@@ -1079,7 +1164,7 @@ createORupdate_prometurbo_operator_via_yaml() {
     operator_yaml_path="prometurbo/operator/prometurbo_operator_full.yaml"
     pqm_crd_path="turbo-metrics/crd/metrics.turbonomic.io_prometheusquerymappings.yaml"
     psc_crd_path="turbo-metrics/crd/metrics.turbonomic.io_prometheusserverconfigs.yaml"
-    
+
     operator_crd=$(curl "${source_github_repo}/${prometurbo_operator_release}/${operator_crd_path}" )
     # The default namespace in previous bundle yaml was turbo but got replace to turbonomic recently, we need to support both in case user specified an older version for installation
     operator_full=$(curl "${source_github_repo}/${prometurbo_operator_release}/${operator_yaml_path}" | sed "s/: turbo$/: ${OPERATOR_NS}/g" | sed "s/: turbonomic$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
@@ -1105,7 +1190,7 @@ createORupdate_prometurbo_operator_via_yaml() {
         operator_yaml_bundle=$(echo "${operator_yaml_bundle}" | sed 's|'"${current_image}"'|'"${target_image}"'|g')
     fi
 
-    # Notify client to mirror which images 
+    # Notify client to mirror which images
     if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
         echo "Ensure following image gets mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
         echo "- $(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')"
@@ -1167,7 +1252,7 @@ apply_operator_bundle() {
         elif [ -n "${is_object_exists}" ] && [ "${obj_kind}" = "ClusterRoleBinding" ]; then
             # if cluster role binding exists, patch it with target services account
             isClusterRoleBinded=$(run_kubectl get "${obj_kind}" "${obj_name}" -o=jsonpath='{range .subjects[*]}{.namespace}{"\n"}{end}' | grep -E "^${OPERATOR_NS}$")
-            if [ -z "${isClusterRoleBinded}" ]; then 
+            if [ -z "${isClusterRoleBinded}" ]; then
                 run_kubectl patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/subjects/-", "value": {"kind": "ServiceAccount", "name": "'"${sa_name}"'", "namespace": "'"${OPERATOR_NS}"'"}}]'
             else
                 echo "Skip patching ${obj_kind} ${obj_name} as the clusterRole has bound to the operator service account already."
@@ -1180,7 +1265,7 @@ apply_operator_bundle() {
             run_kubectl apply -f "${yaml_abs_path}"
         fi
 
-        # patch operator services account with private registry pull secret 
+        # patch operator services account with private registry pull secret
         if [ "${obj_kind}" = "ServiceAccount" ] && [ -n "${PRIVATE_REGISTRY_SECRET_NAME}" ]; then
             run_kubectl -n "${OPERATOR_NS}" patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
         fi
@@ -1229,7 +1314,7 @@ select_cert_op_from_operatorhub() {
     echo "Using Openshift certified ${target} operator: ${CERT_OP_NAME}"
 }
 
-# Function to select channel from a certified operator 
+# Function to select channel from a certified operator
 select_cert_op_channel_from_operatorhub() {
     cert_op_name=${1-${CERT_OP_NAME}}
     target_release=${2-${DEFAULT_RELEASE}}
@@ -1305,7 +1390,7 @@ retry() {
     if [ "${attempts}" -ge ${MAX_RETRY} ]; then
         echo "ERROR: Resource is not ready in ${MAX_RETRY} attempts." >&2 && exit 1
     else
-        attempt_str=$([ "${attempts}" -ge 0 ] && echo " (${attempts}/${MAX_RETRY})") 
+        attempt_str=$([ "${attempts}" -ge 0 ] && echo " (${attempts}/${MAX_RETRY})")
         echo "Resource is not ready, re-attempt after ${RETRY_INTERVAL}s ...${attempt_str}"
         sleep ${RETRY_INTERVAL}
     fi
@@ -1400,13 +1485,13 @@ createORupdate_tsc_subscription() {
 createORupdate_tsc_operator_via_yaml() {
     operator_deploy_name="t8c-client-operator-controller-manager"
     operator_service_account="t8c-client-operator-controller-manager"
-    
+
     source_github_repo="https://raw.githubusercontent.com/IBM/t8c-client-operator"
     operator_yaml_path="deploy/operator_bundle.yaml"
     tsc_operator_release=$(match_github_release "IBM/t8c-client-operator" "${PROMETURBO_VERSION}")
     operator_yaml_bundle=$(curl "${source_github_repo}/${tsc_operator_release}/${operator_yaml_path}" | sed "s/: __NAMESPACE__$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
 
-    # Notify client to mirror which images 
+    # Notify client to mirror which images
     if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
         echo "Ensure following image gets mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
         echo "- $(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')"
@@ -1449,7 +1534,7 @@ createORupdate_tsc_cr() {
         fi
     fi
 
-    # Notify client to mirror which images 
+    # Notify client to mirror which images
     if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
         echo "Ensure following images get mirrored to your private registry. (${PRIVATE_REGISTRY_PREFIX}):"
         echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/kube-state-metrics:${DEFAULT_KUBESTATE_VERSION}"
@@ -1507,7 +1592,7 @@ createORupdate_skupper_tunnel() {
         config="--ignore-not-found"
     fi
 
-    if [ "${action}" = "delete" ]; then 
+    if [ "${action}" = "delete" ]; then
         echo "${action} secrets for TSC connection ..."
         for it in $(run_kubectl get secret -n "${OPERATOR_NS}" -l "skupper.io/type" -o name); do
             run_kubectl "${action}" -n "${OPERATOR_NS}" "${it}" ${config}
@@ -1539,7 +1624,7 @@ createORupdate_skupper_tunnel() {
         if message=$(retry "${retry_count}"); then
             echo "${message}"
         else
-            echo "Failed to setup the TSC connection, please request another one from the endpoint or regenerate the script from the UI!" 
+            echo "Failed to setup the TSC connection, please request another one from the endpoint or regenerate the script from the UI!"
             exit 1
         fi
     done
