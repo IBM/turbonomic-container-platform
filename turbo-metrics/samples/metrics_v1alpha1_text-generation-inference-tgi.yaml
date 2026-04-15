@@ -127,7 +127,7 @@ spec:
           # We use a negative filter below {method != "prefill"}, instead of {method = "next_token"}, to make the query
           # work for both variants of TGI.  The HuggingFace variant uses the term "decode", while the IBM variant uses
           # "next_token".  We could also use regex pattern: {{method =~ "next_token|decode"}}.
-          promql: 1000 * (histogram_quantile(0.99, rate(tgi_batch_inference_duration_bucket{method != "prefill"}[30m]))
+          promql: 1000 * (histogram_quantile(0.99, rate(tgi_batch_inference_duration_bucket{method != "prefill"}[30m])))
     - type: concurrentQueries
       queries:
       - type: used
