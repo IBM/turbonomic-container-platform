@@ -70,7 +70,12 @@ spec:
 {{ toYaml .Values.resources | indent 12 }}
           volumeMounts:
           - name: turbodif-config
-            mountPath: /etc/turbodif
+            mountPath: /etc/turbodif/turbodif-config.json
+            subPath: turbodif-config.json
+            readOnly: true
+          - name: turbodif-config
+            mountPath: /etc/turbodif/turbo-autoreload.config
+            subPath: turbo-autoreload.config
             readOnly: true
           - name: turbonomic-credentials-volume
             mountPath: /etc/turbonomic-credentials

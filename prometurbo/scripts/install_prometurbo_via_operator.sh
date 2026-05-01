@@ -890,6 +890,39 @@ verify_prometheus_query_and_connection() {
     return 0
 }
 
+# Function to get context-aware authentication error messages based on connection approach
+get_prometheus_auth_error_message() {
+    message_type="$1"
+    auth_cause=""
+    auth_next_step=""
+    
+    case "${PROMETHEUS_SERVER_CONNECTION_APPROACH}" in
+        "${TOKEN_APPROACH}"|"${MANUALTOKEN_APPROACH}")
+            auth_cause="The provided access token is invalid, expired, or lacks permissions to access Prometheus."
+            auth_next_step="Verify the token was copied correctly and has proper permissions."
+            ;;
+        "${SERVICEACCOUNT_APPROACH}")
+            auth_cause="The service account lacks sufficient RBAC permissions to access Prometheus."
+            auth_next_step="Verify the service account configuration and RBAC permissions."
+            ;;
+        "${CUSTOMSECRET_APPROACH}")
+            auth_cause="The token in the custom secret is invalid, expired, or lacks permissions to access Prometheus."
+            auth_next_step="Verify the token value in the secret and its permissions."
+            ;;
+        *)
+            # Fallback for undefined or empty approach
+            auth_cause="The provided access token is invalid, expired, or lacks permissions to access Prometheus."
+            auth_next_step="Verify the token was copied correctly and has proper permissions."
+            ;;
+    esac
+    
+    if [ "${message_type}" = "cause" ]; then
+        printf "%s\n" "${auth_cause}"
+    elif [ "${message_type}" = "next_step" ]; then
+        printf "%s\n" "${auth_next_step}"
+    fi
+}
+
 # Test Prometheus server connection
 verify_prometheus_connection() {
     url="$1"
@@ -925,12 +958,13 @@ verify_prometheus_connection() {
         echo "  - The provided URL is incorrect."
         echo "  - The Prometheus service is not running or not reachable."
         echo "  - A network or curl-related issue occurred (see details above)."
-        echo "  - The provided access token is invalid or expired."
+        echo "  - $(get_prometheus_auth_error_message 'cause')"
         echo ""
         echo "Next Steps:"
         echo "  - Verify that the URL is correct and reachable."
         echo "  - Confirm that the Prometheus service is running and accessible."
         echo "  - Check the error details above for curl or network-related issues."
+        echo "  - $(get_prometheus_auth_error_message 'next_step')"
         echo "  - Review the IBM documentation https://www.ibm.com/docs/en/tarm/latest?topic=prometheus-enabling-metrics-collection-prometurbo for additional guidance."
         echo ""
         exit 1
@@ -990,16 +1024,11 @@ createORupdate_psc_cr() {
 
     echo "${ACTION} PrometheusServerConfig CR ..."
 
-    # Fetch cluster ID from the default kubernetes service
-    cluster_ID="$(run_kubectl get ns kube-system -o jsonpath='{.metadata.uid}')"
+    # Fetch identifier ID from the default kubernetes service
+    identifier_ID="$(run_kubectl -n default get svc kubernetes -o jsonpath='{.metadata.uid}')"
 
-    # Ask user to input the cluster ID manually if the id cannot be fetched
-    if [ -z "${cluster_ID}" ]; then
-        echo "Warning: Unable to fetch cluster ID from the default kubernetes service"
-        echo "Press [Enter] your cluster ID or Ctrl+C to abort the installation..."  && read -r cluster_ID
-        if [ -z "${cluster_ID}" ]; then
-            echo "Cluster ID is required for PrometheusServerConfig, installation aborted..." && exit 1
-        fi
+    if [ -z "${identifier_ID}" ]; then
+        echo "Error: Unable to fetch uid from the default kubernetes service" && exit 1
     fi
 
     cat <<-EOF | run_kubectl "${action}" -f - ${config}
@@ -1017,7 +1046,7 @@ createORupdate_psc_cr() {
 	      name: "${PROMETHEUS_SERVER_SECRET_NAME}"
 	  clusters:
 	  - identifier:
-	      id: "${cluster_ID}"
+	      id: "${identifier_ID}"
 	---
 	EOF
 }

@@ -22,8 +22,9 @@ data:
            "registrationTimeoutSec": {{ .Values.sdkProtocolConfig.registrationTimeoutSec }},
            "restartOnRegistrationTimeout": {{ .Values.sdkProtocolConfig.restartOnRegistrationTimeout }}
         }
+      }
       {{- if .Values.targetName }}
-      },
+      ,
       "targetConfig": {
         "targetName": "{{ .Values.targetName }}",
         "targetAddress": "http://127.0.0.1:8081/metrics"
