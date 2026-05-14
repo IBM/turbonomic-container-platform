@@ -570,7 +570,6 @@ apply_kubeturbo_cr() {
 	  serverMeta:
 	    turboServer: "${TARGET_HOST}"
 	    version: "${KUBETURBO_VERSION}"
-	    proxy: "${PROXY_SERVER}"
 	  targetConfig:
 	    targetName: "${TARGET_NAME}"
 	  image:
@@ -612,6 +611,7 @@ apply_oauth2_token() {
 	data:
 	  clientid: $(encode_inline "${OAUTH_CLIENT_ID}")
 	  clientsecret: $(encode_inline "${OAUTH_CLIENT_SECRET}")
+	  proxy: $(encode_inline "${PROXY_SERVER}")
 	---
 	EOF
 }
