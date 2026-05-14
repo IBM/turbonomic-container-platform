@@ -489,6 +489,7 @@ createORupdate_oauth2_token() {
 	data:
 	  clientid: $(encode_inline "${OAUTH_CLIENT_ID}")
 	  clientsecret: $(encode_inline "${OAUTH_CLIENT_SECRET}")
+	  proxy: $(encode_inline "${PROXY_SERVER}")
 	---
 	EOF
 }
@@ -542,7 +543,6 @@ createORupdate_prometurbo_cr() {
 	  serverMeta:
 	    turboServer: "${TARGET_HOST}"
 	    version: "${PROMETURBO_VERSION}"
-	    proxy: "${PROXY_SERVER}"
 	  image:
 	    prometurboRepository: "${PRIVATE_REGISTRY_PREFIX}/${DEFAULT_PROMETURBO_IMG_REPO}"
 	    prometurboTag: "${PROMETURBO_VERSION}"
