@@ -11,7 +11,6 @@ data:
         {{- if .Values.serverMeta.proxy }}
           "proxy": "{{ .Values.serverMeta.proxy }}",
         {{- end }}
-          "version": "{{ .Values.serverMeta.version }}",
           "turboServer": "{{ .Values.serverMeta.turboServer }}"
         },
         "restAPIConfig": {
@@ -37,3 +36,36 @@ data:
         "level": {{ .Values.logging.level }}
       }
     }
+  turbodif-probe-config.yaml: |
+    probeConf:
+      probeCategory: Observability
+      probeUICategory: Observability
+      targetType: Prometheus
+      turboLite: false
+      accountDefinitions:
+      - name: targetIdentifier
+        displayName: Name
+        description: Name for the prometurbo metric server endpoint
+        verificationRegex: .*
+        isRequired: true
+        isSecret: false
+      - name: address
+        displayName: URL
+        description: HTTP URL for the prometurbo metric server
+        verificationRegex: .*
+        isRequired: true
+        isSecret: false
+      - name: probeVersion
+        displayName: Prometurbo Version
+        description: Release Version of the Prometurbo Probe
+        verificationRegex: .*
+        isRequired: false
+        isSecret: false
+      - name: operatorVersion
+        displayName: Prometurbo Operator Version
+        description: Version of the Prometurbo Operator
+        verificationRegex: .*
+        isRequired: false
+        isSecret: false
+      supplyChainConfig:
+

@@ -56,8 +56,8 @@ spec:
           image: {{ .Values.image.turbodifRepository }}:{{ .Values.image.turbodifTag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: "TURBODIF_TARGET_TYPE_OVERWRITE"
-              value: "Prometheus"
+            - name: "OPERATOR_VERSION"
+              value: ""
           args:
           - --v={{ .Values.args.logginglevel }}
 {{- if .Values.args.ignoreCommodityIfPresent }}
@@ -76,6 +76,10 @@ spec:
           - name: turbodif-config
             mountPath: /etc/turbodif/turbo-autoreload.config
             subPath: turbo-autoreload.config
+            readOnly: true
+          - name: turbodif-config
+            mountPath: /etc/turbodif/turbodif-probe-config.yaml
+            subPath: turbodif-probe-config.yaml
             readOnly: true
           - name: turbonomic-credentials-volume
             mountPath: /etc/turbonomic-credentials

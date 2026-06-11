@@ -277,8 +277,30 @@ confirm_installation() {
     [ "${continueInstallation}" = "n" ] || [ "${continueInstallation}" = "N" ] && echo "Please retry the script with correct settings!" && exit 1
 }
 
+# Function to normalize Prometheus URL by removing trailing slashes and query parameters
+normalize_prometheus_url() {
+    url="$1"
+    
+    # Remove query parameters (everything after ?)
+    url="${url%%\?*}"
+    
+    # Remove trailing slashes
+    while [ "${url%/}" != "${url}" ]; do
+        url="${url%/}"
+    done
+    
+    echo "${url}"
+}
+
 # Function to determine which approach used to connect to the Prometheus server
 determine_prometheus_connection_approach() {
+    if [ -z "${PROMETHEUS_SERVER_URL}" ]; then
+        PROMETHEUS_SERVER_CONNECTION_APPROACH="${NONE_APPROACH}"
+    else
+        # Normalize the Prometheus URL by removing trailing slashes and query parameters
+        PROMETHEUS_SERVER_URL=$(normalize_prometheus_url "${PROMETHEUS_SERVER_URL}")
+    fi
+    
     if [ -z "${PROMETHEUS_SERVER_URL}" ]; then
         PROMETHEUS_SERVER_CONNECTION_APPROACH="${NONE_APPROACH}"
     elif [ "${PROMETHEUS_SERVER_SECRET_NAME}" != "${DEFAULT_PROMETHEUS_SERVER_SECRET_NAME}" ]; then
@@ -489,7 +511,6 @@ createORupdate_oauth2_token() {
 	data:
 	  clientid: $(encode_inline "${OAUTH_CLIENT_ID}")
 	  clientsecret: $(encode_inline "${OAUTH_CLIENT_SECRET}")
-	  proxy: $(encode_inline "${PROXY_SERVER}")
 	---
 	EOF
 }
@@ -543,6 +564,7 @@ createORupdate_prometurbo_cr() {
 	  serverMeta:
 	    turboServer: "${TARGET_HOST}"
 	    version: "${PROMETURBO_VERSION}"
+	    proxy: "${PROXY_SERVER}"
 	  image:
 	    prometurboRepository: "${PRIVATE_REGISTRY_PREFIX}/${DEFAULT_PROMETURBO_IMG_REPO}"
 	    prometurboTag: "${PROMETURBO_VERSION}"

@@ -120,7 +120,7 @@ spec:
       containers:
         - name: prometurbo
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/prometurbo:8.20.0
+          image: icr.io/cpopen/turbonomic/prometurbo:8.20.1
           imagePullPolicy: IfNotPresent
           args:
             - --v=2
@@ -141,12 +141,12 @@ spec:
                 - ALL
         - name: turbodif
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/turbodif:8.20.0
+          image: icr.io/cpopen/turbonomic/turbodif:8.20.1
           imagePullPolicy: IfNotPresent
           env:
             # Do not change the following environment variable
-            - name: "TURBODIF_TARGET_TYPE_OVERWRITE"
-              value: "Prometheus"
+            - name: "OPERATOR_VERSION"
+              value: ""
           args:
             - --v=2
           volumeMounts:
@@ -157,6 +157,10 @@ spec:
             - name: turbodif-config
               mountPath: /etc/turbodif/turbo-autoreload.config
               subPath: turbo-autoreload.config
+              readOnly: true
+            - name: turbodif-config
+              mountPath: /etc/turbodif/turbodif-probe-config.yaml
+              subPath: turbodif-probe-config.yaml
               readOnly: true
             - name: turbonomic-credentials-volume
               mountPath: /etc/turbonomic-credentials
@@ -198,7 +202,6 @@ data:
     {
       "communicationConfig": {
         "serverMeta": {
-          "version": "8.20.0",
           "turboServer": "https://<Turbo_server_URL>"
         },
         "restAPIConfig": {
@@ -221,6 +224,38 @@ data:
            "level": 2
         }
     }
+  turbodif-probe-config.yaml: |
+    probeConf:
+      probeCategory: Observability
+      probeUICategory: Observability
+      targetType: Prometheus
+      turboLite: false
+      accountDefinitions:
+      - name: targetIdentifier
+        displayName: Name
+        description: Name for the prometurbo metric server endpoint
+        verificationRegex: .*
+        isRequired: true
+        isSecret: false
+      - name: address
+        displayName: URL
+        description: HTTP URL for the prometurbo metric server
+        verificationRegex: .*
+        isRequired: true
+        isSecret: false
+      - name: probeVersion
+        displayName: Prometurbo Version
+        description: Release Version of the Prometurbo Probe
+        verificationRegex: .*
+        isRequired: false
+        isSecret: false
+      - name: operatorVersion
+        displayName: Prometurbo Operator Version
+        description: Version of the Prometurbo Operator
+        verificationRegex: .*
+        isRequired: false
+        isSecret: false
+      supplyChainConfig:
 ---
 apiVersion: v1
 kind: ConfigMap

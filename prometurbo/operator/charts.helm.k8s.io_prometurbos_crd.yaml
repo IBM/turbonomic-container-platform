@@ -179,7 +179,7 @@ spec:
                     description: URL for Turbo Server endpoint
                     type: string
                   version:
-                    description: Turbo Server major version
+                    description: Turbo Server major version [Deprecated]
                     type: string
                 type: object
               serviceAccountName:
@@ -213,6 +213,10 @@ spec:
                 type: string
               lastUpdatedTimestamp:
                 description: Timestamp of the last sync up
+                type: string
+              operatorVersion:
+                description: The version of the Prometurbo operator that last successfully
+                  reconciled this resource
                 type: string
               serverVersion:
                 description: Used server version if lower than operator version
