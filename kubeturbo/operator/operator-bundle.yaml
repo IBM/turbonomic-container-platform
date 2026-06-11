@@ -1397,10 +1397,10 @@ spec:
                   clusterrolebinding from the cluster so that the service account is no longer tied to the previous role binding.
                 type: string
               roleName:
-                default: cluster-admin
+                default: turbo-cluster-admin
                 description: |-
-                  Specify 'turbo-cluster-reader' or 'turbo-cluster-admin' as role name instead of the default using
-                  the 'cluster-admin' role. A cluster role with this name will be created during deployment
+                  Specify 'turbo-cluster-reader' or 'cluster-admin' as role name instead of the default using
+                  the 'turbo-cluster-admin' role. A cluster role with this name will be created during deployment
                   If using a role name other than the pre-defined role names, cluster role will not be created. This role should be
                   existing in the cluster and should have the necessary permissions required for kubeturbo to work accurately.
                 pattern: ^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?(?::[a-z0-9](?:[-a-z0-9]*[a-z0-9])?)*$
@@ -1515,12 +1515,12 @@ spec:
               configHash:
                 description: Hash of the constructed turbo.config file
                 type: string
-              kubeturboOperatorVersion:
-                description: The version of the Kubeturbo operator that last successfully
-                  reconciled this resource
-                type: string
               lastUpdatedTimestamp:
                 description: Timestamp of the last sync up
+                type: string
+              operatorVersion:
+                description: The version of the Kubeturbo operator that last successfully
+                  reconciled this resource
                 type: string
               serverVersion:
                 description: Used server version if lower than operator version
@@ -1871,7 +1871,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.20.0
+        image: icr.io/cpopen/kubeturbo-operator:8.20.1
         livenessProbe:
           httpGet:
             path: /healthz

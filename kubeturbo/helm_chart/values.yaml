@@ -7,12 +7,12 @@ replicaCount: 1
 # Replace the image with desired version
 image:
   repository: icr.io/cpopen/turbonomic/kubeturbo
-  tag: 8.20.0
+  tag: 8.20.1
   pullPolicy: IfNotPresent
 #  busyboxRepository: busybox
 #  imagePullSecret: ""
 #  cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-#  # cpufreqgetterTag is only valid for Kubeturbo version 8.20.0+, and valid options are the Turbo released version after 8.20.0 or latest otherwise.
+#  # cpufreqgetterTag is only valid for Kubeturbo version 8.20.1+, and valid options are the Turbo released version after 8.20.1 or latest otherwise.
 #  cpufreqgetterTag: latest
 
 annotations:
@@ -29,11 +29,11 @@ kubeturboPodScheduling:
   affinity:
   tolerations:
 
-# Specify 'turbo-cluster-reader' or 'turbo-cluster-admin' as role name instead of the default using
-# the 'cluster-admin' role. A cluster role with this name will be created during deployment
+# Specify 'turbo-cluster-reader' or 'cluster-admin' as role name instead of the default using
+# the 'turbo-cluster-admin' role. A cluster role with this name will be created during deployment
 # If using a role name other than the pre-defined role names, cluster role will not be created. This role should be
 # existing in the cluster and should have the necessary permissions required for kubeturbo to work accurately.
-roleName: "cluster-admin"
+roleName: "turbo-cluster-admin"
 
 # Specify the name of clusterrolebinding
 roleBinding: "turbo-all-binding"
@@ -52,6 +52,11 @@ restAPIConfig:
   turbonomicCredentialsSecretName: "turbonomic-credentials"
   # opsManagerUserName: <Turbo_username>
   # opsManagerPassword: <Turbo_password>
+  # Set createSecret to true to create the turbonomic-credentials secret automatically
+  # When createSecret is true, provide clientId and clientSecret values
+  createSecret: false
+  # clientId: <Client_id_encoded_base64>
+  # clientSecret: <Client_secret_encoded_base64>
 
 # Turbo server registration process configuration
 sdkProtocolConfig:
