@@ -1684,6 +1684,14 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - storage.k8s.io
+  resources:
+  - csinodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - policy.turbonomic.io
   resources:
   - slohorizontalscales
@@ -1871,7 +1879,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.20.1
+        image: icr.io/cpopen/kubeturbo-operator:8.20.2
         livenessProbe:
           httpGet:
             path: /healthz
