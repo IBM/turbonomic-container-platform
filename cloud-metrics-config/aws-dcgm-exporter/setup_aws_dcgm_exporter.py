@@ -9,11 +9,13 @@ import ast
 from textwrap import dedent
 from datetime import datetime
 from enum import Enum
+import urllib.request
 
-SCRIPT_VERSION = "1.0.0"
+SCRIPT_VERSION = "1.0.1"
 CONFIG_FILE = "aws_dcgm_exporter.cfg"
 METRICS_FILE = "dcgm_metrics.csv"
-LOG_FILE = "/tmp/setup_aws_dcgm_exporter.log"
+# Write log to current dir instead of /tmp so it doesn't get lost on reboot.
+LOG_FILE = "setup_aws_dcgm_exporter.log"
 CW_BASEDIR = "/opt/aws/amazon-cloudwatch-agent"
 CWAGENT_LOG = "{}/logs/amazon-cloudwatch-agent.log".format(CW_BASEDIR)
 CWAGENT_CTL = "/usr/bin/sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl"
@@ -25,7 +27,7 @@ DCGM_EXPORTER_CONTAINER_NAME = "dcgm-exporter"
 EXPECTED_METRICS_FILE_PATH = "/home/ubuntu/aws-dcgm-exporter/{}".format(METRICS_FILE)
 TIME_FORMAT = "%I:%M%p %B-%d-%Y"
 CURRENT_SCRIPT = os.path.realpath(__file__)
-
+EC2_INSTANCE_ID = None
 
 def log_proc_output(proc):
     """
@@ -156,13 +158,13 @@ def write_prometheus_yaml():
     polling_interval = config['general']['polling.interval.secs']
     prometheus_port = config['dcgm-exporter']['prometheus.port']
 
-    instance_id = get_instance_value("instance-id")
+    vm_instance_id = get_instance_id()
     instance_name = config['general']['instance.name']
     if instance_name is None:
         instance_name = ''
 
     log.info("Writing " + PROMETHEUS_YAML + " file.")
-    log.info("Current instance-id: " + instance_id + ", instance name: " + instance_name)
+    log.info("Current instance-id: " + vm_instance_id + ", instance name: " + instance_name)
 
     yaml_template = dedent("""
 global:
@@ -180,7 +182,7 @@ scrape_configs:
 
     tmp_file = "/tmp/" + os.path.basename(PROMETHEUS_YAML)
     print(yaml_template.format(polling_interval, polling_interval, polling_interval, prometheus_port,
-                               instance_name, instance_id), file=open(tmp_file, 'w'))
+                               instance_name, vm_instance_id), file=open(tmp_file, 'w'))
     copy_cmd = "/usr/bin/sudo cp " + tmp_file + " " + PROMETHEUS_YAML
     proc = subprocess.run(copy_cmd, shell=True, capture_output=True)
     log_proc_output(proc)
@@ -251,10 +253,12 @@ def docker_setup_dcgm_exporter():
     if source_metrics_file != EXPECTED_METRICS_FILE_PATH:
         on_exit("Metrics file path " + source_metrics_file + " doesn't match expected: " + EXPECTED_METRICS_FILE_PATH)
 
-    docker_cmd = "/usr/bin/sudo /usr/bin/docker run --pid=host --privileged -e DCGM_EXPORTER_INTERVAL=%s" \
+    # Stop and remove old container if present.
+    docker_cmd = "/usr/bin/sudo /usr/bin/docker rm -f %s; /usr/bin/sudo /usr/bin/docker run --pid=host --privileged -e DCGM_EXPORTER_INTERVAL=%s" \
                  " --gpus all --restart=always -d -v /proc:/proc -v %s:/etc/dcgm-exporter/default-counters.csv" \
-                 " -p %s:%s --name %s %s" % (polling_frequency_millis, source_metrics_file, prometheus_port,
-                                             prometheus_port, DCGM_EXPORTER_CONTAINER_NAME, image_version)
+                 " -p %s:%s --name %s %s" % (DCGM_EXPORTER_CONTAINER_NAME, polling_frequency_millis,
+                                             source_metrics_file, prometheus_port,prometheus_port,
+                                             DCGM_EXPORTER_CONTAINER_NAME, image_version)
 
     log.info("Executing docker command: \n" + docker_cmd + "\nPlease wait...")
     proc = subprocess.run(docker_cmd, shell=True, capture_output=True)
@@ -293,19 +297,55 @@ def configure_agent(config_file):
     log_proc_output(proc)
 
 
-def get_instance_value(instance_type):
+def get_instance_id():
     """
-    Gets the value of instance type variable.
+    Gets instance-id value, e.g. 'i-0e0a905d78854fdd8'.
+    Tries newer IMDSv2 option first, else tries IMDSv1.
+
     Return None if not found.
     """
-    instance_cmd = "/usr/bin/curl -s http://169.254.169.254/latest/meta-data/{}".format(instance_type)
-    print("\nRunning instance command: " + instance_cmd, file=open(LOG_FILE, 'a'))
-    proc = subprocess.run(instance_cmd, shell=True, capture_output=True)
-    log_proc_output(proc)
+    current_time = datetime.now().strftime(TIME_FORMAT)
+    try:
+        print(f"{current_time}: Getting IMDSv2 token first...", file=open(LOG_FILE, 'a'))
+        id_token = urllib.request.urlopen(
+            urllib.request.Request(
+                "http://169.254.169.254/latest/api/token",
+                method="PUT",
+                headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"}
+            )
+        ).read().decode()
 
-    if proc.returncode != 0:
-        return None
-    return proc.stdout.decode("utf-8")
+        print(f"{current_time}: Getting IMDSv2 instance-id with token (len: {len(id_token)})...",
+              file=open(LOG_FILE, 'a'))
+        instance_id = urllib.request.urlopen(
+            urllib.request.Request(
+                "http://169.254.169.254/latest/meta-data/instance-id",
+                headers={"X-aws-ec2-metadata-token": id_token}
+            )
+        ).read().decode().strip()
+
+        print(f"{current_time}: Got IMDSv2 instance-id {(instance_id)}.",
+              file=open(LOG_FILE, 'a'))
+
+        return None if instance_id == '' else instance_id
+
+    except Exception as e2:
+        print(f"{current_time}: IMDSv2 failed. Error: {str(e2)}. Trying IMDSv1...",
+              file=open(LOG_FILE, 'a'))
+
+        try:
+            instance_id = urllib.request.urlopen(
+                "http://169.254.169.254/latest/meta-data/instance-id"
+            ).read().decode().strip()
+
+            return None if instance_id == '' else instance_id
+
+        except Exception as e1:
+            logging.exception("IMDSv1 failed")
+            print(f"{current_time}: IMDSv1 failed as well. Error: {str(e1)}.",
+                  file=open(LOG_FILE, 'a'))
+
+            return None
 
 
 def on_init():
@@ -317,11 +357,19 @@ def on_init():
           file=open(LOG_FILE, 'a'))
 
     print("Performing initial checks...", file=open(LOG_FILE, 'a'))
-    if get_instance_value("instance-id") is None:
-        on_exit("Unable to locate local instance-id.")
+
+    global EC2_INSTANCE_ID
+    EC2_INSTANCE_ID = get_instance_id()
+    if EC2_INSTANCE_ID is None:
+        EC2_INSTANCE_ID = config['general']['instance.id']
+
+    if EC2_INSTANCE_ID is None:
+        on_exit("Unable to locate EC2 instance-id. Please specify in config file under general -> instance.id")
+
+    log.info("Using EC2 instance id '" + EC2_INSTANCE_ID + "'.")
 
     if config['general']['instance.name'] != '':
-        log.info("Using instance name '" + config['general']['instance.name'] + "' from config file.")
+        log.info("Using EC2 instance name '" + config['general']['instance.name'] + "' from config file.")
 
     # Verify Nvidia GPU is available.
     check_cmd = "/usr/bin/lspci | /usr/bin/grep -i nvidia"
@@ -336,14 +384,9 @@ def on_init():
     proc = subprocess.run(smi_cmd, shell=True, capture_output=True)
     log_proc_output(proc)
     if proc.returncode != 0:
-        on_exit("No Nvidia 'nvidia-smi' (Nvidia System Mgmt. Interface) found on this VM. Cannot continue with setup.")
+        on_exit("No 'nvidia-smi' (Nvidia System Mgmt. Interface) found on this VM. Cannot continue with setup.")
 
-    dcgmi_cmd = "/usr/bin/dcgmi discovery -l"
-    print("\nRunning DCGMI check command: " + dcgmi_cmd, file=open(LOG_FILE, 'a'))
-    proc = subprocess.run(dcgmi_cmd, shell=True, capture_output=True)
-    log_proc_output(proc)
-    if proc.returncode != 0:
-        on_exit("No Nvidia 'dcgmi' (DCGM Interface) found on this VM. Cannot continue with setup.")
+    # dcgmi executable is not really needed for CloudWatch metrics collection, used more for troubleshooting.
 
     run_user = config['general']['run.user']
     if run_user == '':
@@ -416,7 +459,7 @@ def ask_confirmation():
 NOTE: Please confirm that the following PREREQUISITES have been completed before proceeding:
 1. This EC2 instance has an attached IAM role with CloudWatch access.
 2. CloudWatch agent package has been installed. CloudWatch configuration will be done by this script.
-3. This EC2 instance has Nvidia GPUs attached, and already has 'dcgmi' and 'nvidia-smi' CLI tools.
+3. This EC2 instance has Nvidia GPUs attached, and 'nvidia-smi' CLI tool is installed..
 4. If EC2 instance has a name, it is recommended to specify the name in property 'general' -> 'instance.name' of {} config file.
     \n""".format(CONFIG_FILE))
     sys.stdout.write("Configuring DCGM Exporter on this VM. Metrics will be sent to CloudWatch. Continue? [y|n]: ")

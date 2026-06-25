@@ -1,13 +1,29 @@
 {
-    "metrics": {
-      "namespace": "CWAgent",
-      "metrics_collected": {
-        "nvidia_gpu": {
-          "measurement": [
-            "utilization_gpu",
-            "memory_used"
-          ]
-        }
+  "agent": {
+    "metrics_collection_interval": 60,
+    "run_as_user": "cwagent",
+    "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log"
+  },
+  "metrics": {
+    "namespace": "CWAgent",
+    "metrics_collected": {
+      "nvidia_gpu": {
+        "measurement": [
+          {
+            "name": "utilization_gpu"
+          },
+          {
+            "name": "memory_used",
+            "unit": "Megabytes"
+          }
+        ]
       }
+    },
+    "append_dimensions": {
+      "AutoScalingGroupName": "${aws:AutoScalingGroupName}",
+      "ImageId": "${aws:ImageId}",
+      "InstanceId": "${aws:InstanceId}",
+      "InstanceType": "${aws:InstanceType}"
     }
+  }
 }
