@@ -1,0 +1,40 @@
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusQueryMapping
+metadata:
+  name: turbo-openstack-query-mapping
+  namespace: service-telemetry
+spec:
+  entities:
+    - attributes:
+        - isIdentifier: true
+          label: host
+          matches: '.*\:([a-zA-Z0-9]{8}\-(?:[a-zA-Z0-9]{4}\-){3}[a-zA-Z0-9]{12})\:.*'
+          name: id
+        - isIdentifier: false
+          label: plugin_instance
+          name: name
+      metrics:
+        - queries:
+            - promql: 'avg_over_time(((rate(collectd_virt_virt_cpu_total_total[10m]) / 1000000000) /on(host, plugin_instance) group_left() count by (host, plugin_instance) (collectd_virt_virt_vcpu_total))[10m:])'
+              type: used
+          type: cpu
+        - queries:
+            - promql: 'avg_over_time((collectd_virt_memory{type_instance="total"} - ignoring(type_instance) collectd_virt_memory{type_instance="unused"})[10m:]) / 1024 / 1024'
+              type: used
+          type: memory
+      type: openStackVirtualMachine
+    - attributes:
+        - isIdentifier: true
+          label: host
+          name: id
+        - isIdentifier: false
+          label: project_id
+          name: namespace
+      metrics:
+        - queries:
+            - promql: 'avg by (host) (label_replace(node_cpu_frequency_max_hertz, "host", "$1", "fqdn", "(.*)")) / 1000 / 1000'
+              type: capacity
+            - promql: 'avg by (host) (label_replace(node_cpu_frequency_max_hertz, "host", "$1", "fqdn", "(.*)")) / 1000 / 1000'
+              type: used  
+          type: coreSpeed
+      type: openStackPhysicalMachine    

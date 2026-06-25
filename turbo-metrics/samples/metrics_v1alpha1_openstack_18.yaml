@@ -1,0 +1,41 @@
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusQueryMapping
+metadata:
+  name: turbo-openstack-query-mapping-rhoso
+  namespace: rhoso
+  annotations:
+    description: "PrometheusQueryMapping for OpenStack 18 with new ceilometer metrics"
+spec:
+  entities:
+    - attributes:
+        - isIdentifier: true
+          label: resource
+          name: id
+        - isIdentifier: false
+          label: resource_name
+          name: name
+      metrics:
+        - queries:
+            - promql: 'avg_over_time(vm:ceilometer_cpu:ratio1m[10m])'
+              type: used
+          type: cpu
+        - queries:
+            - promql: 'avg_over_time(ceilometer_memory_usage[10m])'
+              type: used
+          type: memory
+      type: openStackVirtualMachine
+    - attributes:
+        - isIdentifier: true
+          label: host
+          name: id
+        - isIdentifier: false
+          label: project_id
+          name: namespace
+      metrics:
+        - queries:
+            - promql: 'avg by (host) (label_replace(node_cpu_frequency_max_hertz, "host", "$1", "fqdn", "(.*)")) / 1000 / 1000'
+              type: capacity
+            - promql: 'avg by (host) (label_replace(node_cpu_frequency_max_hertz, "host", "$1", "fqdn", "(.*)")) / 1000 / 1000'
+              type: used  
+          type: coreSpeed
+      type: openStackPhysicalMachine

@@ -168,6 +168,7 @@ spec:
                             - pMemory
                             - coreSpeed
                             - hugepages
+                            - netThroughput
                             type: string
                         required:
                         - queries
@@ -179,7 +180,7 @@ spec:
                       description: |-
                         Type specifies the type of entity.
                         This field is required and must be one of application, databaseServer, virtualMachine, physicalMachine, container, containerSpec,
-                        numa, or nvidiaGPU.
+                        numa, containerizedVirtualMachine or nvidiaGPU.
                       enum:
                       - application
                       - databaseServer
@@ -193,6 +194,7 @@ spec:
                       - container
                       - containerSpec
                       - numa
+                      - containerizedVirtualMachine
                       type: string
                   required:
                   - attributes
