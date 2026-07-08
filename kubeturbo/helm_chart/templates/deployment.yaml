@@ -59,6 +59,12 @@ spec:
           - --kubelet-https={{ .Values.args.kubelethttps }}
           - --kubelet-port={{ .Values.args.kubeletport }}
           {{- end }}
+          {{- if hasKey .Values.args "kubeletForceSelfSignedCert" }}
+          - --kubelet-force-selfsigned-cert={{ .Values.args.kubeletForceSelfSignedCert }}
+          {{- end }}
+          {{- if .Values.args.useNodeProxyEndpoint }}
+          - --use-node-proxy-endpoint={{ .Values.args.useNodeProxyEndpoint }}
+          {{- end }}
           {{- if .Values.args.discoveryIntervalSec }}
           - --discovery-interval-sec={{ .Values.args.discoveryIntervalSec }}
           {{- end }}

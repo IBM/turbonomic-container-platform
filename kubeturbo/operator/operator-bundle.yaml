@@ -147,6 +147,11 @@ spec:
                     description: The username to be used to push changes to git with
                       ArgoCD integration
                     type: string
+                  kubeletForceSelfSignedCert:
+                    default: false
+                    description: Force use of self-signed certificates for kubelet
+                      connections (insecure). Default is false for secure TLS validation.
+                    type: boolean
                   kubelethttps:
                     default: true
                     description: Identify if kubelet requires https
@@ -179,6 +184,11 @@ spec:
                   stitchuuid:
                     default: true
                     description: Identify if using uuid or ip for stitching
+                    type: boolean
+                  useNodeProxyEndpoint:
+                    default: false
+                    description: Use API server node proxy endpoint for kubelet queries
+                      instead of direct kubelet connection.
                     type: boolean
                 type: object
               daemonPodDetectors:
@@ -1702,6 +1712,14 @@ rules:
   - list
   - watch
 - apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - security.openshift.io
   resources:
   - securitycontextconstraints
@@ -1879,7 +1897,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.20.2
+        image: icr.io/cpopen/kubeturbo-operator:8.20.3
         livenessProbe:
           httpGet:
             path: /healthz

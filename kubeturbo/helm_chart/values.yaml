@@ -7,12 +7,12 @@ replicaCount: 1
 # Replace the image with desired version
 image:
   repository: icr.io/cpopen/turbonomic/kubeturbo
-  tag: 8.20.2
+  tag: 8.20.3
   pullPolicy: IfNotPresent
 #  busyboxRepository: busybox
 #  imagePullSecret: ""
 #  cpufreqgetterRepository: icr.io/cpopen/turbonomic/cpufreqgetter
-#  # cpufreqgetterTag is only valid for Kubeturbo version 8.20.2+, and valid options are the Turbo released version after 8.20.2 or latest otherwise.
+#  # cpufreqgetterTag is only valid for Kubeturbo version 8.16.5+, and valid options are the Turbo released version after 8.16.5 or latest otherwise.
 #  cpufreqgetterTag: latest
 
 annotations:
@@ -164,6 +164,8 @@ args:
   # If running on k8s 1.10.x or older, set https to false and change port 10255 for kubelet
   kubelethttps: true
   kubeletport: 10250
+  # SECURITY: Set to true to use the node proxy endpoint for kubelet connections (recommended for maximum security)
+  useNodeProxyEndpoint: false
   # set to false if using IP for stitching
   stitchuuid: true
   # if Kubernetes version is older than 1.6, then add another arg for move/resize action

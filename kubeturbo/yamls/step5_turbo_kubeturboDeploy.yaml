@@ -55,7 +55,7 @@ spec:
         runAsNonRoot: true
       containers:
       - name: kubeturbo
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.20.2
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.20.3
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
@@ -71,6 +71,8 @@ spec:
         # change to https=false and port=10255 if unsecure kubelet read only is configured
         - --kubelet-https=true
         - --kubelet-port=10250
+        # SECURITY: Set to true to use the node proxy endpoint for kubelet connections (recommended for maximum security)
+        - --use-node-proxy-endpoint=false
         # Uncomment for pod moves in OpenShift
         #- --scc-support=*
         # Uncomment for discovery interval in seconds, default value is 600
@@ -99,7 +101,7 @@ spec:
         #- --cpufreq-job-exclude-node-labels=kubernetes.io/key=value
         # The complete cpufreqgetter image uri used for fallback node cpu frequency getter job.
         #- --cpufreqgetter-image=icr.io/cpopen/turbonomic/cpufreqgetter
-        # The cpufreqgetter image tag, valid for Kubeturbo version 8.20.2+ and the valid options are the Turbo released version after 8.20.2 or using latest otherwise.
+        # The cpufreqgetter image tag, valid for Kubeturbo version 8.16.5+ and the valid options are the Turbo released version after 8.16.5 or using latest otherwise.
         #- --cpufreqgetter-image-tag=latest
         # The name of the secret that stores the image pull credentials for cpufreqgetter image.
         #- --cpufreqgetter-image-pull-secret=<secret-name>

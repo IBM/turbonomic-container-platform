@@ -93,14 +93,14 @@ ACCEPT_FALLBACK=""
 # check if the current system supports all the commands needed to run the script
 dependencies_check() {
     missing_dependencies=""
-    for dependency in ${DEPENDENCY_LIST}; do 
+    for dependency in ${DEPENDENCY_LIST}; do
         dependency_path=$(command -v "${dependency}")
         if ! [ -x "${dependency_path}" ]; then
             missing_dependencies="${missing_dependencies} ${dependency}"
         fi
     done
 
-    if [ -n "${missing_dependencies}" ]; then 
+    if [ -n "${missing_dependencies}" ]; then
         echo "ERROR: Missing the required command: $(echo "${missing_dependencies}" | sed 's/ /, /g')"
         echo "Please refer to the official documentation or use your package manager to install to continue."
         exit 1
@@ -141,7 +141,7 @@ validate_args() {
 
     # Extract registry prefix from given the Kubeturbo registry
     PRIVATE_REGISTRY_PREFIX=$(echo "${KUBETURBO_REGISTRY}" | sed "s|\/${KUBETURBO_IMG_REPO}$||g")
-    
+
     # Determine if the private registry is applied or not
     if [ "${PRIVATE_REGISTRY_PREFIX}" != "${DEFAULT_REGISTRY_PREFIX}" ]; then
         PRIVATE_REGISTRY_ENABLED="true"
@@ -190,6 +190,7 @@ confirm_installation() {
     printf "%-20s %-20s\n" "Proxy Server" "${proxy_server_enabled}"
     printf "%-20s %-20s\n" "Private Registry" "${PRIVATE_REGISTRY_ENABLED}"
     printf "%-20s %-20s\n" "Registry" "${PRIVATE_REGISTRY_PREFIX}"
+    printf "%-20s %-20s\n" "DeploymentType" "Operator"
     echo ""
     echo "Please confirm the above settings [Y/n]: " && read -r  continueInstallation
     [ "${continueInstallation}" = "n" ] || [ "${continueInstallation}" = "N" ] && echo "Please retry the script with correct settings!" && exit 1
@@ -204,14 +205,14 @@ cluster_type_check() {
         TARGET_SUBTYPE=$(auto_detect_cluster_type)
         return
     fi
-    
+
     current_context=$(run_kubectl config current-context)
     current_oc_cluster_type=$(auto_detect_cluster_type)
     TARGET_SUBTYPE=$(normalize_target_cluster_type "${TARGET_SUBTYPE}")
-    if [ "${current_oc_cluster_type}" != "${TARGET_SUBTYPE}" ]; then 
+    if [ "${current_oc_cluster_type}" != "${TARGET_SUBTYPE}" ]; then
         echo "Your current cluster type [${current_oc_cluster_type}] mismatches with the target type [${TARGET_SUBTYPE}] you specified from the UI!"
         echo "Do you want to continue the installation as the [${current_oc_cluster_type}] target? [y/N]: " && read -r allowMismatch
-        if [ "${allowMismatch}" = "y" ] || [ "${allowMismatch}" = "Y" ]; then 
+        if [ "${allowMismatch}" = "y" ] || [ "${allowMismatch}" = "Y" ]; then
             TARGET_SUBTYPE="${current_oc_cluster_type}"
         else
             echo "Please double check your current Kubernetes context before the other try!" && exit 1
@@ -274,6 +275,56 @@ normalize_target_cluster_type() {
     [ -n "${is_target_oc_cluster}" ] && echo "${OCP_TYPE}" || echo "${K8S_TYPE}"
 }
 
+check_kubeturbo_operator_exists() {
+    current_version="$1"
+
+    # Skip this step if action is delete
+    if [ "${ACTION}" = "delete" ]; then
+        return 1
+    fi
+
+    # First check if operator/CSV exists
+    if [ "${TARGET_SUBTYPE}" = "${OCP_TYPE}" ]; then
+        # For OpenShift, check if CSV exists
+        if ! run_kubectl get csv -n "${OPERATOR_NS}" 2>/dev/null | grep -q "^kubeturbo"; then
+            # CSV doesn't exist, return false
+            return 1
+        fi
+        # CSV exists, retrieve the installed version
+        installed_version=$(run_kubectl get csv -n "${OPERATOR_NS}" 2>/dev/null | grep "^kubeturbo" | awk '{print $1}' | sed 's/^kubeturbo\.v//')
+    else
+        # For Kubernetes, check if deployment exists
+        if ! run_kubectl get deployment kubeturbo-operator -n "${OPERATOR_NS}" 2>/dev/null >/dev/null; then
+            # Deployment doesn't exist, return false
+            return 1
+        fi
+        # Deployment exists, retrieve the installed version
+        installed_version=$(run_kubectl get deployment kubeturbo-operator -n "${OPERATOR_NS}" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null | awk -F':' '{print $NF}')
+    fi
+
+    # Check if kubeturbo operator already exists
+    # If versions are the same, return true
+    if [ "${installed_version}" = "${current_version}" ]; then
+        echo "Kubeturbo operator ${installed_version} is already installed."
+        return 0
+    fi
+
+    # Versions are different, prompt user to override
+    echo "WARNING: Kubeturbo operator ${installed_version} is already installed in namespace '${OPERATOR_NS}'"
+    echo ""
+    echo "Do you want to override and install ${current_version}? [y/N]: "
+    read -r override_installation
+
+    if [ "${override_installation}" != "y" ] && [ "${override_installation}" != "Y" ]; then
+        echo "Exiting without modifying the current installation."
+        exit 0
+    fi
+
+    echo "Proceeding with operator update..."
+    # Return false since version is different
+    return 1
+}
+
 main() {
     # gather all cluster level resource kinds
     K8S_CLUSTER_KINDS=$(run_kubectl api-resources --namespaced=false --no-headers | awk '{print $NF}')
@@ -281,9 +332,9 @@ main() {
     NS_EXISTS=$(run_kubectl get ns --field-selector=metadata.name="${OPERATOR_NS}" -o name)
     if [ -z "${NS_EXISTS}" ]; then
         echo "Creating ${OPERATOR_NS} namespace to deploy Kubeturbo operator"
-        run_kubectl create ns "${OPERATOR_NS}" --dry-run=client -o yaml | run_kubectl apply -f - 
+        run_kubectl create ns "${OPERATOR_NS}" --dry-run=client -o yaml | run_kubectl apply -f -
     fi
-    
+
     if [ "${ACTION}" != "delete" ] && [ "${ENABLE_TSC}" = "optional" ]; then
         echo "Do you want to install with the auto logging and auto version updates? [Y/n]: " && read -r enableTSC
         if [ "${enableTSC}" = "n" ] || [ "${enableTSC}" = "N" ]; then
@@ -292,11 +343,11 @@ main() {
             ENABLE_TSC="true"
         fi
     fi
-    
+
     apply_operator_group
     setup_kubeturbo
 
-    # applicable scenario: user switch from tsc approach to oauth2 approach 
+    # applicable scenario: user switch from tsc approach to oauth2 approach
     is_tsc_launched=$(run_kubectl -n "${OPERATOR_NS}" get deploy --field-selector=metadata.name=t8c-client-operator-controller-manager -o name)
     if [ -n "${is_tsc_launched}" ] && [ "${ENABLE_TSC}" = "false" ]; then
         echo "Info: Dismounting Auto-logging & Auto-updating feature as no longer required ..."
@@ -312,9 +363,9 @@ main() {
 apply_operator_group() {
     if [ "${TARGET_SUBTYPE}" != "${OCP_TYPE}" ]; then return; fi
     op_gp_count=$(run_kubectl -n "${OPERATOR_NS}" get OperatorGroup -o name | wc -l)
-    if [ "${op_gp_count}" -eq 1 ]; then 
+    if [ "${op_gp_count}" -eq 1 ]; then
         return
-    elif [ "${op_gp_count}" -gt 1 ]; then 
+    elif [ "${op_gp_count}" -gt 1 ]; then
         echo "ERROR: Found multiple Operator Groups in the namespace ${OPERATOR_NS}" >&2 && exit 1
     fi
 
@@ -378,7 +429,7 @@ apply_private_registry_secret() {
             --docker-server="${docker_server}" \
             --namespace="${OPERATOR_NS}" \
             --dry-run="client" -o yaml | run_kubectl "${action}" -f - ${config}
-        
+
         if [ "${ACTION}" != "delete" ]; then
             run_kubectl -n "${OPERATOR_NS}" patch sa default --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
         fi
@@ -405,6 +456,10 @@ apply_kubeturbo_op_subscription() {
     select_cert_op_channel_from_operatorhub "${CERT_KUBETURBO_OP_NAME}" "${KT_TARGET_RELEASE}"
     CERT_KUBETURBO_OP_RELEASE="${CERT_OP_RELEASE}"
     CERT_KUBETURBO_OP_VERSION="${CERT_OP_VERSION}"
+
+    if check_kubeturbo_operator_exists "${CERT_KUBETURBO_OP_VERSION}"; then
+        return
+    fi
 
     action="${ACTION}"
     unset config
@@ -451,7 +506,7 @@ handle_private_registry_fallback() {
     echo "Would you like to proceed with the YAML approach (manual, no auto-updates)? [Y/n]: " && read -r choice
 
     ACCEPT_FALLBACK=0
-    if [ "${choice}" = "n" ] || [ "${choice}" = "N" ]; then 
+    if [ "${choice}" = "n" ] || [ "${choice}" = "N" ]; then
         echo "Please proceed to mirror the OCP catalog for OperatorHub: https://www.ibm.com/docs/en/tarm/8.16.x?topic=requirements-container-image-repository"
         echo "Press [Enter] to continue: " && read -r _
     else
@@ -464,22 +519,28 @@ handle_private_registry_fallback() {
 apply_kubeturbo_op_yaml() {
     operator_deploy_name="kubeturbo-operator"
     operator_service_account="kubeturbo-operator"
-    
+
     source_github_repo="https://raw.githubusercontent.com/IBM/turbonomic-container-platform"
     operator_yaml_path="kubeturbo/operator/operator-bundle.yaml"
     kubeturbo_operator_release=$(match_github_release "IBM/turbonomic-container-platform" "${KUBETURBO_VERSION}")
     # The default namespace in previous bundle yaml was turbo but got replace to turbonomic recently, we need to support both in case user specified an older version for installation
     operator_yaml_bundle=$(curl "${source_github_repo}/${kubeturbo_operator_release}/${operator_yaml_path}" | sed "s/: turbo$/: ${OPERATOR_NS}/g" | sed "s/: turbonomic$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
-    
+
     # Only apply operator version once user specified
+    current_image=$(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')
+    target_version=$(echo "${current_image##*:}")
     if [ -n "${KUBETURBO_OP_VERSION}" ]; then
         echo "Using the customized image tag for operator: ${KUBETURBO_OP_VERSION}"
-        current_image=$(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')
         target_image=$(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}' | sed 's|:.*|:'"${KUBETURBO_OP_VERSION}"'|g')
         operator_yaml_bundle=$(echo "${operator_yaml_bundle}" | sed 's|'"${current_image}"'|'"${target_image}"'|g')
+        target_version=$KUBETURBO_OP_VERSION
     fi
 
-    # Notify client to mirror which images 
+    if check_kubeturbo_operator_exists "${target_version}"; then
+        return
+    fi
+
+    # Notify client to mirror which images
     if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
         echo "Ensure following image gets mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
         echo "- $(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')"
@@ -522,7 +583,7 @@ apply_kubeturbo_cr() {
     unset config
     if [ "${ACTION}" = "delete" ]; then
         action="${ACTION}"
-        config="--ignore-not-found"
+        config="--ignore-not-found --wait=true --timeout=60s"
     fi
 
     echo "${ACTION} Kubeturbo CR ..."
@@ -546,7 +607,7 @@ apply_kubeturbo_cr() {
     # Will use the previous default tag (latest) if the current tag version is not found.
     cpuFreqgetterTag=$(curl -s "https://icr.io/v2/cpopen/turbonomic/cpufreqgetter/tags/list" 2>/dev/null | grep -q -w "\"${KUBETURBO_VERSION}\"" && echo "${KUBETURBO_VERSION}" || echo "latest")
 
-    # Notify client to mirror which images 
+    # Notify client to mirror which images
     if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
         echo "Ensure following images get mirrored to your private registry (${PRIVATE_REGISTRY_PREFIX}):"
         echo "- ${DEFAULT_REGISTRY_PREFIX}/${DEFAULT_KUBETURBO_IMG_REPO}:${KUBETURBO_VERSION}"
@@ -574,10 +635,10 @@ apply_kubeturbo_cr() {
 	  targetConfig:
 	    targetName: "${TARGET_NAME}"
 	  image:
-	    repository: "${PRIVATE_REGISTRY_PREFIX}/${KUBETURBO_IMG_REPO}" 
+	    repository: "${PRIVATE_REGISTRY_PREFIX}/${KUBETURBO_IMG_REPO}"
 	    tag: "${KUBETURBO_VERSION}"
 	    ${imagePullSecret}
-	    cpufreqgetterRepository: "${PRIVATE_REGISTRY_PREFIX}/turbonomic/cpufreqgetter" 
+	    cpufreqgetterRepository: "${PRIVATE_REGISTRY_PREFIX}/turbonomic/cpufreqgetter"
 	  roleName: "${KUBETURBO_ROLE}"
 	---
 	EOF
@@ -585,7 +646,7 @@ apply_kubeturbo_cr() {
 }
 
 apply_oauth2_token() {
-    if [ "${ACTION}" != "delete" ]; then 
+    if [ "${ACTION}" != "delete" ]; then
         if [ -z "${OAUTH_CLIENT_ID}" ] || [ -z "${OAUTH_CLIENT_SECRET}" ]; then
             echo "Missing OAuth2 client settings, please gather values following the instruction: "
             echo "https://www.ibm.com/docs/en/tarm/latest?topic=cookbook-authenticating-oauth-20-clients-api"
@@ -689,18 +750,18 @@ apply_tsc_op_subscription() {
 apply_tsc_op_yaml() {
     operator_deploy_name="t8c-client-operator-controller-manager"
     operator_service_account="t8c-client-operator-controller-manager"
-    
+
     source_github_repo="https://raw.githubusercontent.com/IBM/t8c-client-operator"
     operator_yaml_path="deploy/operator_bundle.yaml"
     tsc_operator_release=$(match_github_release "IBM/t8c-client-operator" "${KUBETURBO_VERSION}")
     operator_yaml_bundle=$(curl "${source_github_repo}/${tsc_operator_release}/${operator_yaml_path}" | sed "s/: __NAMESPACE__$/: ${OPERATOR_NS}/g" | sed '/^\s*#/d')
 
-    # Notify client to mirror which images 
+    # Notify client to mirror which images
     if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
         echo "Ensure following image gets mirrored to your private registry. (${PRIVATE_REGISTRY_PREFIX}):"
         echo "- $(echo "${operator_yaml_bundle}" | grep "image: " | awk '{print $2}')"
         echo "Please press [Enter] to proceed: " && read -r _
-   
+
         # Swap to private registry
         operator_yaml_bundle=$(echo "${operator_yaml_bundle}" | sed 's|image: '"${DEFAULT_REGISTRY_PREFIX}"'|image: '"${PRIVATE_REGISTRY_PREFIX}"'|g')
     fi
@@ -714,7 +775,7 @@ apply_tsc_cr() {
     unset config
     if [ "${ACTION}" = "delete" ]; then
         action="${ACTION}"
-        config="--ignore-not-found"
+        config="--ignore-not-found --wait=true --timeout=60s"
     fi
 
     echo "${ACTION} TSC CR ..."
@@ -739,7 +800,7 @@ apply_tsc_cr() {
         )
     fi
 
-     # Notify client to mirror which images 
+     # Notify client to mirror which images
     if [ "${PRIVATE_REGISTRY_ENABLED}" = "true" ] && [ "${ACTION}" != "delete" ]; then
         echo "Ensure following images get mirrored to your private registry. (${PRIVATE_REGISTRY_PREFIX}):"
         echo "- ${DEFAULT_REGISTRY_PREFIX}/turbonomic/kube-state-metrics:${DEFAULT_KUBESTATE_VERSION}"
@@ -797,7 +858,7 @@ apply_skupper_tunnel() {
         config="--ignore-not-found"
     fi
 
-    if [ "${ACTION}" = "delete" ]; then 
+    if [ "${ACTION}" = "delete" ]; then
         echo "${ACTION} secrets for TSC connection ..."
         for it in $(run_kubectl get secret -n "${OPERATOR_NS}" -l "skupper.io/type" -o name); do
             run_kubectl "${action}" -n "${OPERATOR_NS}" "${it}" ${config}
@@ -829,7 +890,7 @@ apply_skupper_tunnel() {
         if message=$(retry "${retry_count}"); then
             echo "${message}"
         else
-            echo "Failed to setup the TSC connection, please request another one from the endpoint or regenerate the script from the UI!" 
+            echo "Failed to setup the TSC connection, please request another one from the endpoint or regenerate the script from the UI!"
             exit 1
         fi
     done
@@ -847,7 +908,7 @@ wait_for_tsc_sync_up() {
         if message=$(retry "${retry_count}"); then
             echo "${message}"
         else
-            echo "There's no updates from the TSC client, please double-check if the Turbo server can reach out your current cluster!" 
+            echo "There's no updates from the TSC client, please double-check if the Turbo server can reach out your current cluster!"
             exit 1
         fi
     done
@@ -940,7 +1001,7 @@ validate_select_input() {
 wait_for_deployment() {
     if [ "${ACTION}" = "delete" ]; then return; fi
     namespace=$1 && deploy_name=$2
-    
+
     echo "Waiting for deployment '${deploy_name}' to start..."
     retry_count=0
     while true; do
@@ -971,7 +1032,7 @@ retry() {
     if [ "${attempts}" -ge ${MAX_RETRY} ]; then
         echo "ERROR: Resource is not ready in ${MAX_RETRY} attempts." >&2 && exit 1
     else
-        attempt_str=$([ "${attempts}" -ge 0 ] && echo " (${attempts}/${MAX_RETRY})") 
+        attempt_str=$([ "${attempts}" -ge 0 ] && echo " (${attempts}/${MAX_RETRY})")
         echo "Resource is not ready, re-attempt after ${RETRY_INTERVAL}s ...${attempt_str}"
         sleep ${RETRY_INTERVAL}
     fi
@@ -990,7 +1051,7 @@ encode_inline() {
 }
 
 password_secret_handler() {
-    if [ "${PWD_SECRET_ENCODED}" = "true" ]; then 
+    if [ "${PWD_SECRET_ENCODED}" = "true" ]; then
         echo "$1" | base64 -d
     else
         echo "$1"
@@ -1019,7 +1080,7 @@ apply_operator_bundle() {
         elif [ -n "${is_object_exists}" ] && [ "${obj_kind}" = "ClusterRoleBinding" ]; then
             # if cluster role binding exists, patch it with target services account
             isClusterRoleBinded=$(run_kubectl get "${obj_kind}" "${obj_name}" -o=jsonpath='{range .subjects[*]}{.namespace}{"\n"}{end}' | grep -E "^${OPERATOR_NS}$")
-            if [ -z "${isClusterRoleBinded}" ]; then 
+            if [ -z "${isClusterRoleBinded}" ]; then
                 run_kubectl patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/subjects/-", "value": {"kind": "ServiceAccount", "name": "'"${sa_name}"'", "namespace": "'"${OPERATOR_NS}"'"}}]'
             else
                 echo "Skip patching ${obj_kind} ${obj_name} as the clusterRole has bound to the operator service account already."
@@ -1032,7 +1093,7 @@ apply_operator_bundle() {
             run_kubectl apply -f "${yaml_abs_path}"
         fi
 
-        # patch operator services account with private registry pull secret 
+        # patch operator services account with private registry pull secret
         if [ "${obj_kind}" = "ServiceAccount" ] && [ -n "${PRIVATE_REGISTRY_SECRET_NAME}" ]; then
             run_kubectl -n "${OPERATOR_NS}" patch "${obj_kind}" "${obj_name}" --type='json' -p='[{"op": "add", "path": "/imagePullSecrets", "value": [{"name": '"${PRIVATE_REGISTRY_SECRET_NAME}"'}]}]'
         fi

@@ -62,6 +62,7 @@ rules:
       - customresourcedefinitions
       - clusterversions
       - controllerrevisions
+      - rollouts
     verbs:
       - get
       - list

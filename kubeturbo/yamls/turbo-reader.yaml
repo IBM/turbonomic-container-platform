@@ -12,6 +12,7 @@ rules:
       - extensions
       - devops.turbonomic.io
       - config.openshift.io
+      - argoproj.io
     resources:
       - nodes
       - pods
@@ -33,6 +34,7 @@ rules:
       - deploymentconfigs
       - operatorresourcemappings
       - clusterversions
+      - rollouts
     verbs:
       - get
       - list
