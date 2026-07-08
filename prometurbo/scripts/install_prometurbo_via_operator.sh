@@ -520,7 +520,7 @@ createORupdate_prometurbo_cr() {
     action="${ACTION}"
     unset config
     if [ "${action}" = "delete" ]; then
-        config="--ignore-not-found"
+        config="--ignore-not-found --wait=true --timeout=60s"
     fi
 
     echo "${ACTION} Prometurbo CR ..."
@@ -1560,7 +1560,7 @@ createORupdate_tsc_cr() {
     action="${ACTION}"
     unset config
     if [ "${action}" = "delete" ]; then
-        config="--ignore-not-found"
+        config="--ignore-not-found --wait=true --timeout=60s"
     fi
 
     registry=""

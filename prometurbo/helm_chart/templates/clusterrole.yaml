@@ -9,11 +9,23 @@ rules:
       - ""
     resources:
       - services
-    resourceNames: 
+    resourceNames:
       - kubernetes
     verbs:
       - get
       - list
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
 {{- end }}
 ---
 kind: ClusterRoleBinding
