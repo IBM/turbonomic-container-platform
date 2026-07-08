@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -42,12 +43,10 @@ CounterName == "Committed Bytes") // the name used in Windows records
 )
 
 var (
-	workspaces   []string
-	tenantID     string
-	clientID     string
-	clientSecret string
-	hostMap      map[string]string
-	client       *http.Client
+	workspaces     []string
+	targetInfoPath string
+	hostMap        map[string]string
+	client         *http.Client
 )
 
 type Column struct {
@@ -96,19 +95,45 @@ type AccessToken struct {
 }
 
 type TargetInfo struct {
-	ClientID     string `yaml:"client"`
-	TenantID     string `yaml:"tenant"`
-	ClientSecret string `yaml:"key"`
+	ClientID string         `yaml:"client"`
+	TenantID string         `yaml:"tenant"`
+	Secret   sensitiveBytes `yaml:"key"`
 }
 
-func init() {
+type sensitiveBytes []byte
+
+func (s *sensitiveBytes) UnmarshalYAML(value *yaml.Node) error {
+	var v string
+	if err := value.Decode(&v); err != nil {
+		return err
+	}
+	*s = append((*s)[:0], v...)
+	return nil
+}
+
+// String returns a masked value to keep the secret out of logs.
+func (s sensitiveBytes) String() string {
+	return "xxxx"
+}
+
+// Clear zeroes the secret bytes.
+func (s sensitiveBytes) Clear() {
+	for i := range s {
+		s[i] = 0
+	}
+}
+
+func configureLogging() {
 	_ = flag.Set("alsologtostderr", "true")
 	_ = flag.Set("stderrthreshold", "INFO")
 	_ = flag.Set("v", "2")
 	flag.Parse()
+}
+
+func initializeFromEnv() error {
 	workspaceIDs := os.Getenv("AZURE_LOG_ANALYTICS_WORKSPACES")
 	if workspaceIDs == "" {
-		glog.Fatalf("AZURE_LOG_ANALYTICS_WORKSPACES is missing.")
+		return fmt.Errorf("AZURE_LOG_ANALYTICS_WORKSPACES is missing")
 	}
 	workspaces = strings.Split(workspaceIDs, ",")
 	targetInfoLocation := os.Getenv("TARGET_INFO_LOCATION")
@@ -117,57 +142,52 @@ func init() {
 	}
 	targetID := os.Getenv("TARGET_ID")
 	if targetID == "" {
-		glog.Fatalf("TARGET_ID is missing.")
+		return fmt.Errorf("TARGET_ID is missing")
 	}
-	targetInfoFilePath := path.Join(targetInfoLocation, targetID)
-	targetInfoFile, err := ioutil.ReadFile(targetInfoFilePath)
+	var err error
+	targetInfoPath, err = resolveTargetInfoPath(targetInfoLocation, targetID)
 	if err != nil {
-		glog.Fatalf("Failed to read target info from file %v: %v", targetInfoFilePath, err)
+		return fmt.Errorf("failed to resolve target info path: %w", err)
 	}
-	var targetInfo TargetInfo
-	err = yaml.Unmarshal(targetInfoFile, &targetInfo)
-	if err != nil {
-		glog.Fatalf("Failed to unmarshal target info from file %v: %v", targetInfoFilePath, err)
-	}
-	tenantID = targetInfo.TenantID
-	if tenantID == "" {
-		glog.Fatalf("Tenant ID is missing.")
-	}
-	clientID = targetInfo.ClientID
-	if clientID == "" {
-		glog.Fatalf("Client ID is missing.")
-	}
-	clientSecret = targetInfo.ClientSecret
-	if clientSecret == "" {
-		glog.Fatalf("Client secret is missing")
+	if _, err := loadTargetInfo(targetInfoPath); err != nil {
+		return fmt.Errorf("failed to load target info: %w", err)
 	}
 	client = &http.Client{}
 	hostMap = make(map[string]string)
+
+	return nil
 }
 
 func login() (string, error) {
+	targetInfo, err := loadTargetInfo(targetInfoPath)
+	if err != nil {
+		return "", err
+	}
+	defer targetInfo.Secret.Clear()
+
 	loginURL, _ := url.Parse(baseLoginURL)
-	loginURL.Path = path.Join(tenantID, "oauth2", "token")
+	loginURL.Path = path.Join(targetInfo.TenantID, "oauth2", "token")
 	data := url.Values{}
 	data.Set("grant_type", defaultGrantType)
 	data.Set("resource", defaultResource)
 	data.Set("redirect_uri", defaultRedirectURI)
-	data.Set("client_id", clientID)
-	data.Set("client_secret", clientSecret)
-	req, err := http.NewRequest(http.MethodPost, loginURL.String(), strings.NewReader(data.Encode()))
+	data.Set("client_id", targetInfo.ClientID)
+	data.Set("client_secret", string(targetInfo.Secret))
+	encoded := data.Encode()
+	req, err := http.NewRequest(http.MethodPost, loginURL.String(), strings.NewReader(encoded))
 	if err != nil {
 		return "", fmt.Errorf(
 			"failed to create request POST %v: %v", loginURL, err)
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+	req.Header.Add("Content-Length", strconv.Itoa(len(encoded)))
 	res, err := client.Do(req)
-	defer res.Body.Close()
 	if err != nil {
 		return "", fmt.Errorf(
 			"request GET %v failed with error %v", loginURL, err)
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", fmt.Errorf(
 			"failed to read response of request POST %v: %v", loginURL, err)
@@ -190,7 +210,6 @@ func createAndSendTopology(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		glog.Errorf("Failed to login: %v", err)
 	}
-	glog.V(2).Infof("Token: %s", token)
 	topology, err := createTopology(token)
 	if err != nil {
 		glog.Errorf("Failed to create topology: %v", err)
@@ -276,12 +295,12 @@ func doQuery(token, query, workspace string) (*LogAnalyticsQueryResults, error) 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	res, err := client.Do(req)
-	defer res.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf(
 			"request POST %v failed with error %v", queryURL, err)
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to read response of request POST %v: %v", queryURL, err)
@@ -319,9 +338,55 @@ func sendResult(topology *dif.Topology, w http.ResponseWriter, r *http.Request) 
 }
 
 func main() {
+	configureLogging()
+	if err := initializeFromEnv(); err != nil {
+		glog.Fatalf("Failed to initialize Azure Log Analytics target: %v", err)
+	}
+
 	http.HandleFunc(metricPath, createAndSendTopology)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
 		glog.Fatalf("Failed to create server: %v.", err)
 	}
+}
+
+func resolveTargetInfoPath(targetInfoLocation, targetID string) (string, error) {
+	if targetID != filepath.Base(targetID) || targetID == "." || targetID == ".." {
+		return "", fmt.Errorf("invalid TARGET_ID %q", targetID)
+	}
+
+	baseDir := filepath.Clean(targetInfoLocation)
+	resolvedPath := filepath.Join(baseDir, targetID)
+	relPath, err := filepath.Rel(baseDir, resolvedPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to validate target info path: %w", err)
+	}
+	if relPath == ".." || strings.HasPrefix(relPath, fmt.Sprintf("..%c", os.PathSeparator)) {
+		return "", fmt.Errorf("target info path escapes %s", baseDir)
+	}
+
+	return resolvedPath, nil
+}
+
+func loadTargetInfo(filePath string) (*TargetInfo, error) {
+	targetInfoFile, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read target info from file %v: %w", filePath, err)
+	}
+
+	var targetInfo TargetInfo
+	if err := yaml.Unmarshal(targetInfoFile, &targetInfo); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal target info from file %v: %w", filePath, err)
+	}
+	if targetInfo.TenantID == "" {
+		return nil, fmt.Errorf("tenant ID is missing")
+	}
+	if targetInfo.ClientID == "" {
+		return nil, fmt.Errorf("client ID is missing")
+	}
+	if len(targetInfo.Secret) == 0 {
+		return nil, fmt.Errorf("client secret is missing")
+	}
+
+	return &targetInfo, nil
 }
