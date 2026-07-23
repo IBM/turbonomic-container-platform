@@ -55,7 +55,7 @@ spec:
         runAsNonRoot: true
       containers:
       - name: kubeturbo
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.20.3
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.20.4
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
