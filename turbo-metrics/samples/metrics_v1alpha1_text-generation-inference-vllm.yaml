@@ -83,15 +83,15 @@ spec:
         # will be unavailable as there are no requests to count the tokens.  To address this, we append the expression
         # with the "OR Z == 0" tail, which will return 0 because the request count is 0.
         # Note: it is theoretically impossible that the request count is non-zero and the token count is unavailable.
-        promql: rate(vllm:prompt_tokens_total{}[10m]) + rate(vllm:generation_tokens_total{}[10m])
-          OR rate(vllm:request_success_total{}[30m]) == 0
+        promql: rate(vllm:prompt_tokens_total{finished_reason=""}[10m]) + rate(vllm:generation_tokens_total{finished_reason=""}[10m])
+          OR rate(vllm:request_success_total{finished_reason=""}[30m]) == 0
     - type: queuingTime
       queries:
       - type: used
         # The 99th-percentile of queuing time in milliseconds over the past 30 minutes
         # If there are zero observations over the 30 minutes, then the value 0 will be returned.
-        promql: 1000 * (sum by (container, instance, namespace, pod, model_name) (rate(vllm:request_success_total{}[30m]) == 0)
-          OR (histogram_quantile(0.99, sum by (le, container, instance, namespace, pod, model_name) (rate(vllm:request_queue_time_seconds_bucket{}[30m])))))
+        promql: 1000 * (sum by (container, instance, namespace, pod, model_name) (rate(vllm:request_success_total{finished_reason=""}[30m]) == 0)
+          OR (histogram_quantile(0.99, sum by (le, container, instance, namespace, pod, model_name) (rate(vllm:request_queue_time_seconds_bucket{finished_reason=""}[30m])))))
     - type: responseTime
       queries:
       - type: used
@@ -99,7 +99,7 @@ spec:
         # This query will return nothing (missing data) if there are zero observations, which we think is the
         # correct behavior because without any requests recorded we can't really measure the response time which is
         # certainly not zero.
-        promql: 1000 * (histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket{}[30m])))
+        promql: 1000 * (histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket{finished_reason=""}[30m])))
     - type: serviceTime
       queries:
       - type: used
@@ -108,14 +108,14 @@ spec:
         # This query will return nothing (missing data) when there are zero observations during the period, which we
         # think is the correct behavior because without any requests recorded we can't really measure the service time
         # which is certainly not zero.
-        promql: 1000 * (histogram_quantile(0.99, rate(vllm:time_per_output_token_seconds_bucket{}[30m])))
+        promql: 1000 * (histogram_quantile(0.99, rate(vllm:inter_token_latency_seconds_bucket{}[30m])))
     - type: concurrentQueries
       queries:
       - type: used
         # A similar "A >= B OR B OR C == 0" as above to retrieve the current batch size, with a 0 value under the
         # scenario of zero-transaction.
-        promql: avg_over_time(vllm:num_requests_running{}[10m]) OR rate(vllm:request_success_total{}[30m]) == 0
+        promql: avg_over_time(vllm:num_requests_running{finished_reason=""}[10m]) OR rate(vllm:request_success_total{finished_reason=""}[30m]) == 0
     - type: llmCache
       queries:
       - type: used
-        promql: avg_over_time(vllm:gpu_cache_usage_perc{}[10m])
+        promql: avg_over_time(vllm:kv_cache_usage_perc{}[10m])

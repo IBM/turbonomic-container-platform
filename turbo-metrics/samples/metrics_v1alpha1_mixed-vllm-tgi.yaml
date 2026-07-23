@@ -89,8 +89,8 @@ spec:
         # The TGI portion exhibits the "A OR B + C OR D == 0" pattern.  A (tgi_request_total_tokens_sum) is only
         # available in the IBM variant of the TGI implementation, and not in the original HuggingFace one in which only
         # B (tgi_request_input_length_sum) and C (tgi_request_generated_tokens_sum) exist.  Their sum is A.
-        promql: rate(vllm:prompt_tokens_total{}[10m]) + rate(vllm:generation_tokens_total{}[10m])
-          OR rate(vllm:request_success_total{}[30m]) == 0
+        promql: rate(vllm:prompt_tokens_total{finished_reason=""}[10m]) + rate(vllm:generation_tokens_total{finished_reason=""}[10m])
+          OR rate(vllm:request_success_total{finished_reason=""}[30m]) == 0
           OR rate(tgi_request_total_tokens_sum{}[10m])
           OR rate(tgi_request_input_length_sum{}[10m]) + rate(tgi_request_generated_tokens_sum{}[10m])
           OR rate(tgi_request_count{}[30m]) == 0
@@ -100,8 +100,8 @@ spec:
         # The 99th-percentile of queuing time in milliseconds over the past 30 minutes, supporting both vLLM and TGI
         # metrics as long as one of them is available.
         # If there are zero observations over the 30 minutes, then the value 0 will be returned.
-        promql: 1000 * (sum by (container, instance, namespace, pod, model_name) (rate(vllm:request_success_total{}[30m]) == 0)
-          OR (histogram_quantile(0.99, sum by (le, container, instance, namespace, pod, model_name) (rate(vllm:request_queue_time_seconds_bucket{}[30m]))))
+        promql: 1000 * (sum by (container, instance, namespace, pod, model_name) (rate(vllm:request_success_total{finished_reason=""}[30m]) == 0)
+          OR (histogram_quantile(0.99, sum by (le, container, instance, namespace, pod, model_name) (rate(vllm:request_queue_time_seconds_bucket{finished_reason=""}[30m]))))
           OR sum by (container, instance, namespace, pod, model_name) (rate(tgi_request_count{}[30m]) == 0)
           OR (histogram_quantile(0.99, sum by (le, container, instance, namespace, pod, model_name) (rate(tgi_request_queue_duration_bucket{}[30m])))))
     - type: responseTime
@@ -112,7 +112,7 @@ spec:
         # This query will return nothing (missing data) if there are zero observations, which we think is the
         # correct behavior because without any requests recorded we can't really measure the response time which is
         # certainly not zero.
-        promql: 1000 * (histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket{}[30m]))
+        promql: 1000 * (histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket{finished_reason=""}[30m]))
           OR histogram_quantile(0.99, rate(tgi_request_duration_bucket{}[30m])))
     - type: serviceTime
       queries:
@@ -130,15 +130,15 @@ spec:
         # We use a negative filter below {method != "prefill"}, instead of {method = "next_token"}, to make the query
         # work for both variants of TGI.  The HuggingFace variant uses the term "decode", while the IBM variant uses
         # "next_token".  We could also use regex pattern: {{method =~ "next_token|decode"}}.
-        promql: 1000 * (histogram_quantile(0.99, rate(vllm:time_per_output_token_seconds_bucket{}[30m]))
+        promql: 1000 * (histogram_quantile(0.99, rate(vllm:inter_token_latency_seconds_bucket{}[30m]))
           OR histogram_quantile(0.99, rate(tgi_batch_inference_duration_bucket{method != "prefill"}[30m])))
     - type: concurrentQueries
       queries:
       - type: used
-        promql: avg_over_time(vllm:num_requests_running{}[10m]) OR avg_over_time(tgi_batch_current_size{}[10m])
-          OR rate(vllm:request_success_total{}[30m]) == 0 OR rate(tgi_request_input_count{}[30m]) == 0
+        promql: avg_over_time(vllm:num_requests_running{finished_reason=""}[10m]) OR avg_over_time(tgi_batch_current_size{}[10m])
+          OR rate(vllm:request_success_total{finished_reason=""}[30m]) == 0 OR rate(tgi_request_input_count{}[30m]) == 0
     - type: llmCache
       queries:
       - type: used
         # This only exists in vLLM not TGI.
-        promql: avg_over_time(vllm:gpu_cache_usage_perc{}[10m])
+        promql: avg_over_time(vllm:kv_cache_usage_perc{}[10m])
