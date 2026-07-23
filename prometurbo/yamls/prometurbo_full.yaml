@@ -132,7 +132,7 @@ spec:
       containers:
         - name: prometurbo
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/prometurbo:8.20.3-1
+          image: icr.io/cpopen/turbonomic/prometurbo:8.20.4
           imagePullPolicy: IfNotPresent
           args:
             - --v=2
@@ -153,7 +153,7 @@ spec:
                 - ALL
         - name: turbodif
           # Replace the image tag with desired version
-          image: icr.io/cpopen/turbonomic/turbodif:8.20.3-1
+          image: icr.io/cpopen/turbonomic/turbodif:8.20.4
           imagePullPolicy: IfNotPresent
           env:
             # Do not change the following environment variable
