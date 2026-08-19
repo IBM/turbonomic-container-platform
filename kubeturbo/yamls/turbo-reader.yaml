@@ -102,6 +102,14 @@ rules:
       - list
       - watch
   - apiGroups:
+      - hco.kubevirt.io
+    resources:
+      - hyperconvergeds
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - charts.helm.k8s.io
     resources:
       - kubeturbos

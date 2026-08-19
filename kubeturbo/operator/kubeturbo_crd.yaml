@@ -1342,6 +1342,16 @@ spec:
                       sidecars:
                         description: Policy setting entry for sidecar containers
                         properties:
+                          barePodInjectedSidecarNames:
+                            description: |-
+                              A list of injected sidecar names for bare pods. Used to disable action eligibility
+                              for injected sidecar containers on bare pods. The following container names are
+                              included by default: asm-proxy, cloud-sql-proxy, consul-connect-inject-init,
+                              daprd, envoy, istio-proxy, linkerd-proxy, oauth2-proxy, vault-agent, vault-agent-init,
+                              vault-init.
+                            items:
+                              type: string
+                            type: array
                           disableActionGeneration:
                             default: false
                             description: Disable resize action generation for sidecar

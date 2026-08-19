@@ -132,6 +132,14 @@ rules:
       - list
       - watch
   - apiGroups:
+      - hco.kubevirt.io
+    resources:
+      - hyperconvergeds
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - charts.helm.k8s.io
     resources:
       - xls
@@ -224,7 +232,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.20.5",
+                "version": "8.20.6",
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
@@ -297,7 +305,7 @@ spec:
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.20.5
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.20.6
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
@@ -360,6 +368,9 @@ spec:
           capabilities:
             drop:
             - ALL
+        resizePolicy:
+        - resourceName: memory
+          restartPolicy: RestartContainer
         volumeMounts:
         # volume will be created, any name will work and must match below
         - name: turbo-volume

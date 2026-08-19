@@ -103,6 +103,14 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - hco.kubevirt.io
+    resources:
+      - hyperconvergeds
+    verbs:
+      - get
+      - list
+      - watch
 {{- end }}
 {{- if eq .Values.roleName "turbo-cluster-admin" }}
 ---
@@ -281,6 +289,14 @@ rules:
       - instancetype.kubevirt.io
     resources:
       - virtualmachineclusterpreferences
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - hco.kubevirt.io
+    resources:
+      - hyperconvergeds
     verbs:
       - get
       - list

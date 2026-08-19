@@ -55,7 +55,7 @@ spec:
         runAsNonRoot: true
       containers:
       - name: kubeturbo
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.20.5
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.20.6
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
@@ -130,6 +130,9 @@ spec:
           capabilities:
             drop:
             - ALL
+        resizePolicy:
+        - resourceName: memory
+          restartPolicy: RestartContainer
         volumeMounts:
         # volume will be created, any name will work and must match below
         - name: turbo-volume

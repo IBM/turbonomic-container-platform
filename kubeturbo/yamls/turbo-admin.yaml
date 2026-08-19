@@ -164,6 +164,14 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - hco.kubevirt.io
+    resources:
+      - hyperconvergeds
+    verbs:
+      - get
+      - list
+      - watch
   - apiGroups: [""]
     resources: ["pods/resize"]
     verbs: ["patch"]

@@ -132,6 +132,10 @@ spec:
               - ALL
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+          {{- if .Values.resizePolicy }}
+          resizePolicy:
+{{ toYaml .Values.resizePolicy | indent 12 }}
+          {{- end }}
           volumeMounts:
           - name: turbo-volume
             mountPath: /etc/kubeturbo

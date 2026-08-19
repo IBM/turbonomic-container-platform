@@ -7,7 +7,7 @@ replicaCount: 1
 # Replace the image with desired version
 image:
   repository: icr.io/cpopen/turbonomic/kubeturbo
-  tag: 8.20.5
+  tag: 8.20.6
   pullPolicy: IfNotPresent
 #  busyboxRepository: busybox
 #  imagePullSecret: ""
@@ -179,6 +179,10 @@ args:
 
 resources: {}
 
+resizePolicy:
+- resourceName: "memory"
+  restartPolicy: "RestartContainer"
+
 wiremock:
   enabled: false
   url: wiremock:8080
@@ -203,6 +207,7 @@ policySettings:
   containers:
     sidecars:
       disableActionGeneration: false
+      # barePodInjectedSidecarNames: []
 
 # Optional virtualization settings for VM lifecycle operations
 virtualizationConfig:
