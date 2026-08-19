@@ -37,6 +37,10 @@ spec:
           - --v={{ .Values.args.logginglevel }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+          {{- if .Values.resizePolicy }}
+          resizePolicy:
+{{ toYaml .Values.resizePolicy | indent 12 }}
+          {{- end }}
           ports:
           - containerPort: 8081
           volumeMounts:
@@ -68,6 +72,10 @@ spec:
 {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+          {{- if .Values.resizePolicy }}
+          resizePolicy:
+{{ toYaml .Values.resizePolicy | indent 12 }}
+          {{- end }}
           volumeMounts:
           - name: turbodif-config
             mountPath: /etc/turbodif/turbodif-config.json
