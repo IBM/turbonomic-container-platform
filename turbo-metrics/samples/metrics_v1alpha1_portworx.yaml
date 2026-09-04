@@ -1,0 +1,98 @@
+# Monitors data from Portworx storage.
+# Depending on your configuration, you might have to modify labels if you have customized them
+# from the defaults.
+apiVersion: metrics.turbonomic.io/v1alpha1
+kind: PrometheusQueryMapping
+metadata:
+  name: portworx
+  labels:
+    mapping: portworx
+spec:
+  entities:
+  - type: storageProvisioner
+    attributes:
+    - name: id
+      label: clusterUUID
+      isIdentifier: true
+    - name: cluster
+      label: cluster
+    metrics:
+    - type: storageAmount
+      queries:
+      - type: used
+        promql: last_over_time(px_cluster_status_size[10m])
+  - type: virtualVolume
+    attributes:
+    - name: id
+      labels:
+        - volumeid
+        - nodeID
+      delimeter: /
+      isIdentifier: true
+    - name: volumeid
+      label: volumeid
+    - name: volumename
+      label: volumename
+    metrics:
+    - type: storageAmount
+      queries:
+      - type: used
+        promql: last_over_time(px_volume_usage_bytes[10m]) / 1024 / 1024
+      - type: capacity
+        promql: last_over_time(px_volume_capacity_bytes[10m]) / 1024 / 1024
+  - type: virtualVolumeReplica
+    attributes:
+    - name: id
+      labels:
+        - volumeid
+        - nodeID
+      delimeter: /
+      isIdentifier: true
+    - name: volumeid
+      label: volumeid
+    - name: storageProvider
+      label: pool
+    metrics:
+    - type: storageAccess
+      queries:
+      - type: used
+        promql: >-
+          (rate(px_volume_replica_reads_total[10m]) + rate(px_volume_replica_writes_total[10m]))
+            * on(volumeid) group_left() (px_volume_attached)
+    - type: storageLatency
+      queries:
+      - type: used
+        promql: >-
+          ((increase(px_volume_replica_read_ms_total[10m]) + increase(px_volume_replica_write_ms_total[10m])) /
+            clamp_min(increase(px_volume_replica_reads_total[10m]) + increase(px_volume_replica_writes_total[10m]), 1))
+            * on(volumeid) group_left() (px_volume_attached)
+  - type: logicalPool
+    attributes:
+    - name: id
+      label: pool
+      isIdentifier: true
+    - name: node
+      label: node
+    - name: clusterUUID
+      label: clusterUUID
+    metrics:
+    - type: storageAmount
+      queries:
+      - type: used
+        promql: last_over_time(px_pool_stats_used_bytes[10m]) / 1024 / 1024
+      - type: capacity
+        promql: last_over_time(px_pool_stats_total_bytes[10m]) / 1024 / 1024
+    - type: storageProvisioned
+      queries:
+      - type: used
+        promql: last_over_time(px_pool_stats_provisioned_bytes[10m]) / 1024 / 1024
+      - type: capacity
+        promql: last_over_time(px_pool_stats_total_bytes[10m]) / 1024 / 1024
+    - type: storageAccess
+      queries:
+      - type: used
+        promql: avg_over_time(px_pool_stats_io_iops[10m])
+    - type: storageLatency
+      queries:
+      - type: used
+        promql: avg_over_time(px_pool_stats_io_latency_seconds[10m]) * 1000

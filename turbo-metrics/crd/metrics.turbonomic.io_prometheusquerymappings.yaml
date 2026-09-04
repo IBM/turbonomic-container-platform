@@ -169,6 +169,10 @@ spec:
                             - coreSpeed
                             - hugepages
                             - netThroughput
+                            - storageAccess
+                            - storageAmount
+                            - storageLatency
+                            - storageProvisioned
                             type: string
                         required:
                         - queries
@@ -180,7 +184,7 @@ spec:
                       description: |-
                         Type specifies the type of entity.
                         This field is required and must be one of application, databaseServer, virtualMachine, physicalMachine, container, containerSpec,
-                        numa, containerizedVirtualMachine or nvidiaGPU.
+                        numa, containerizedVirtualMachine, nvidiaGPU, storageProvisioner, logicalPool, virtualVolume, or virtualVolumeReplica.
                       enum:
                       - application
                       - databaseServer
@@ -195,6 +199,10 @@ spec:
                       - containerSpec
                       - numa
                       - containerizedVirtualMachine
+                      - storageProvisioner
+                      - logicalPool
+                      - virtualVolume
+                      - virtualVolumeReplica
                       type: string
                   required:
                   - attributes
