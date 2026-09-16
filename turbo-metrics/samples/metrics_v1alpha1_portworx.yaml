@@ -9,7 +9,7 @@ metadata:
     mapping: portworx
 spec:
   entities:
-  - type: storageProvisioner
+  - type: storageController
     attributes:
     - name: id
       label: clusterUUID
@@ -58,14 +58,14 @@ spec:
       - type: used
         promql: >-
           (rate(px_volume_replica_reads_total[10m]) + rate(px_volume_replica_writes_total[10m]))
-            * on(volumeid) group_left() (px_volume_attached)
+            * on(volumeid) group_left() max by(volumeid) (px_volume_attached)
     - type: storageLatency
       queries:
       - type: used
         promql: >-
           ((increase(px_volume_replica_read_ms_total[10m]) + increase(px_volume_replica_write_ms_total[10m])) /
             clamp_min(increase(px_volume_replica_reads_total[10m]) + increase(px_volume_replica_writes_total[10m]), 1))
-            * on(volumeid) group_left() (px_volume_attached)
+            * on(volumeid) group_left() max by(volumeid) (px_volume_attached)
   - type: logicalPool
     attributes:
     - name: id

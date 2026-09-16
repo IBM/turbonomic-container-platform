@@ -184,7 +184,7 @@ spec:
                       description: |-
                         Type specifies the type of entity.
                         This field is required and must be one of application, databaseServer, virtualMachine, physicalMachine, container, containerSpec,
-                        numa, containerizedVirtualMachine, nvidiaGPU, storageProvisioner, logicalPool, virtualVolume, or virtualVolumeReplica.
+                        numa, containerizedVirtualMachine, nvidiaGPU, storageController, logicalPool, virtualVolume, or virtualVolumeReplica.
                       enum:
                       - application
                       - databaseServer
@@ -199,7 +199,7 @@ spec:
                       - containerSpec
                       - numa
                       - containerizedVirtualMachine
-                      - storageProvisioner
+                      - storageController
                       - logicalPool
                       - virtualVolume
                       - virtualVolumeReplica
