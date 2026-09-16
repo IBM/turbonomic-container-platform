@@ -310,6 +310,18 @@ rules:
   - apiGroups: ["policy"]
     resources: ["pods/eviction"]
     verbs: ["create"]
+  # Volume scaling: resize PVC
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "update", "patch"]
+  # Volume scaling: manage VolumeAttributesClass
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattributesclasses"]
+    verbs: ["get", "list", "create"]
+  # Volume scaling: read PVC events
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list"]
   - nonResourceURLs:
       - /metrics
     verbs:

@@ -2,20 +2,17 @@
 
 ################## PRE-CONFIGURATION ##################
 ## Place your hardcoded ARGS variable assignments here ##
-# TARGET_HOST=""
-# OAUTH_CLIENT_ID=""
-# OAUTH_CLIENT_SECRET=""
-# TSC_TOKEN=""
 
 ################## CMD ALIAS ##################
-DEPENDENCY_LIST="grep cat sleep wc awk sed base64 mktemp curl"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+DEPENDENCY_LIST="grep cat sleep wc awk sed base64 mktemp curl cut chmod"
 KUBECTL=$(command -v oc)
 KUBECTL=${KUBECTL:-$(command -v kubectl)}
 if ! [ -x "${KUBECTL}" ]; then
     echo "ERROR: Command 'oc' and 'kubectl' are not found, please install either of them first!" >&2 && exit 1
 fi
 
-################## CONSTANT ##################
+################## CONSTANTS ##################
 export KUBECTL_WARNINGS="false"
 
 K8S_TYPE="Kubernetes"
@@ -39,6 +36,7 @@ DEFAULT_KUBETURBO_IMG_REPO="turbonomic/kubeturbo"
 DEFAULT_PRIVATE_REGISTRY_SECRET_NAME="private-docker-registry-secret"
 DEFAULT_LOGGING_LEVEL=0
 DEFAULT_KUBESTATE_VERSION="v2.14.0"
+DEFAULT_INSTALL_OPENCOST="false"
 
 RETRY_INTERVAL=10 # in seconds
 MAX_RETRY=10
@@ -70,6 +68,9 @@ KUBETURBO_REGISTRY=${KUBETURBO_REGISTRY:-${DEFAULT_KUBETURBO_REGISTRY}}
 KUBETURBO_REGISTRY_USRNAME=${KUBETURBO_REGISTRY_USRNAME:-""}
 KUBETURBO_REGISTRY_PASSWRD=${KUBETURBO_REGISTRY_PASSWRD:-""}
 TARGET_SUBTYPE=${TARGET_SUBTYPE:-""}
+INSTALL_OPENCOST=${INSTALL_OPENCOST:-${DEFAULT_INSTALL_OPENCOST}}
+IS_CLUSTER_TYPE_CHECKED=${IS_CLUSTER_TYPE_CHECKED:-"false"}
+OPENCOST_SCRIPT="${SCRIPT_DIR}/${TARGET_NAME}-opencost.sh"
 
 LOGGING_LEVEL=${LOGGING_LEVEL:-${DEFAULT_LOGGING_LEVEL}}
 
@@ -172,6 +173,9 @@ run_kubectl() {
 # confirm args that are passed into the script and get user's consent
 confirm_installation() {
     proxy_server_enabled=$([ -n "${PROXY_SERVER}" ] && echo 'true' || echo 'false')
+    echo "=========================================="
+    echo "Installing Kubeturbo via Kubeturbo Operator..."
+    echo "=========================================="
     echo "Here is the summary for the current installation:"
     echo ""
     printf "%-20s %-20s\n" "---------" "---------"
@@ -194,7 +198,9 @@ confirm_installation() {
     echo ""
     echo "Please confirm the above settings [Y/n]: " && read -r  continueInstallation
     [ "${continueInstallation}" = "n" ] || [ "${continueInstallation}" = "N" ] && echo "Please retry the script with correct settings!" && exit 1
-    cluster_type_check
+    if [ "${IS_CLUSTER_TYPE_CHECKED}" = "false" ]; then
+      cluster_type_check
+    fi
 }
 
 # To determine whether the current kubectl context is an Openshift cluster
@@ -218,6 +224,8 @@ cluster_type_check() {
             echo "Please double check your current Kubernetes context before the other try!" && exit 1
         fi
     fi
+
+    IS_CLUSTER_TYPE_CHECKED=true
 }
 
 # get client's concent to install to the current cluster
@@ -325,6 +333,72 @@ check_kubeturbo_operator_exists() {
     return 1
 }
 
+# Install OpenCost if enabled (apply mode only)
+install_opencost_if_enabled() {
+    if [ "${ACTION}" = "delete" ] || [ "${INSTALL_OPENCOST}" != "true" ]; then
+        return 0
+    fi
+
+    prompt_continue_kubeturbo=false
+
+    # Check if OpenCost script exists
+    if [ -f "${OPENCOST_SCRIPT}" ]; then
+        # Make script executable and run it
+        chmod +x "${OPENCOST_SCRIPT}"
+        "${OPENCOST_SCRIPT}"
+        opencost_exit_code=$?
+
+        if [ ${opencost_exit_code} -eq 0 ]; then
+            echo "=========================================="
+            echo "SUCCESS: OpenCost installation completed successfully"
+            echo "=========================================="
+            IS_CLUSTER_TYPE_CHECKED=true
+        else
+            echo "=========================================="
+            echo "WARNING: OpenCost installation failed with exit code ${opencost_exit_code}" >&2
+            echo "=========================================="
+            prompt_continue_kubeturbo=true
+        fi
+    else
+        echo "ERROR: OpenCost installation script '${OPENCOST_SCRIPT}' not found" >&2
+        echo "Please ensure the script is in the current directory."
+        prompt_continue_kubeturbo=true
+    fi
+
+    if [ "${prompt_continue_kubeturbo}" = true ]; then
+        echo ""
+        echo "Do you want to continue with Kubeturbo installation? [Y/n]: "
+        read -r continue_kubeturbo
+
+        if [ "${continue_kubeturbo}" = "n" ] || [ "${continue_kubeturbo}" = "N" ]; then
+            echo "Exiting without installing Kubeturbo."
+            exit 1
+        else
+            echo "Continuing with Kubeturbo installation..."
+        fi
+    fi
+}
+
+# Delete OpenCost if enabled and user confirms (delete mode only)
+delete_opencost_if_enabled() {
+    echo ""
+    echo "Do you want to also delete OpenCost? [y/N]: "
+    read -r delete_opencost
+
+    if [ "${delete_opencost}" != "y" ] && [ "${delete_opencost}" != "Y" ]; then
+        echo "Skipping OpenCost deletion."
+        return 0
+    fi
+
+    if [ ! -f "${OPENCOST_SCRIPT}" ]; then
+        echo "ERROR: OpenCost script '${OPENCOST_SCRIPT}' not found. Skipping OpenCost deletion." >&2
+        return 1
+    fi
+
+    chmod +x "${OPENCOST_SCRIPT}"
+    ACTION="${ACTION}" IS_CLUSTER_TYPE_CHECKED="${IS_CLUSTER_TYPE_CHECKED}" "${OPENCOST_SCRIPT}"
+}
+
 main() {
     # gather all cluster level resource kinds
     K8S_CLUSTER_KINDS=$(run_kubectl api-resources --namespaced=false --no-headers | awk '{print $NF}')
@@ -356,8 +430,11 @@ main() {
 
     setup_tsc
 
+    if [ "${ACTION}" = "delete" ] && [ "${INSTALL_OPENCOST}" = "true" ]; then
+        delete_opencost_if_enabled
+    fi
+
     echo "Done!"
-    exit 0
 }
 
 apply_operator_group() {
@@ -1114,4 +1191,5 @@ should_skip_delete_k8s_object() {
 }
 
 ################## MAIN ##################
+install_opencost_if_enabled
 dependencies_check && validate_args "$@" && confirm_installation && main
