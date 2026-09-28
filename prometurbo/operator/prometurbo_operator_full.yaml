@@ -207,7 +207,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: icr.io/cpopen/prometurbo-operator:8.21.1
+        image: icr.io/cpopen/prometurbo-operator:8.21.2
         livenessProbe:
           httpGet:
             path: /healthz
