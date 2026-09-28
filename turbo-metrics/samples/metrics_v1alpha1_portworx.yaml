@@ -9,6 +9,18 @@ metadata:
     mapping: portworx
 spec:
   entities:
+  - type: virtualMachine
+    attributes:
+    - name: openshiftNodeName
+      label: node
+      isIdentifier: true
+    metrics:
+    - type: storageThreads
+      queries:
+      - type: used
+        promql: max_over_time(px_node_stats_busy_threads_percent[10m]) / 100 * 2048
+      - type: capacity
+        promql: px_node_stats_busy_threads_percent * 0 + 2048
   - type: storageController
     attributes:
     - name: id

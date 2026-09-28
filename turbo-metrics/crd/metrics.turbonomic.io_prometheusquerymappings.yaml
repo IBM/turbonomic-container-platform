@@ -173,6 +173,7 @@ spec:
                             - storageAmount
                             - storageLatency
                             - storageProvisioned
+                            - storageThreads
                             type: string
                         required:
                         - queries
