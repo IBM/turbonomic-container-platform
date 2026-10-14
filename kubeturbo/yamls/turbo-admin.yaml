@@ -193,6 +193,14 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["get", "list"]
+  # VPA spec mutations (controlledValues, recommenders) and discovery; guarded by VPASupport feature gate
+  - apiGroups: ["autoscaling.k8s.io"]
+    resources: ["verticalpodautoscalers"]
+    verbs: ["get", "list", "patch"]
+  # VPA status write (status.recommendation)
+  - apiGroups: ["autoscaling.k8s.io"]
+    resources: ["verticalpodautoscalers/status"]
+    verbs: ["patch"]
   - nonResourceURLs:
       - /metrics
     verbs:

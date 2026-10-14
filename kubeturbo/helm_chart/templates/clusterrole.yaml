@@ -111,6 +111,16 @@ rules:
       - get
       - list
       - watch
+  {{- if and .Values.featureGates .Values.featureGates.VPASupport }}
+  # VPA discovery (read-only); guarded by VPASupport feature gate
+  - apiGroups:
+      - autoscaling.k8s.io
+    resources:
+      - verticalpodautoscalers
+    verbs:
+      - get
+      - list
+  {{- end }}
 {{- end }}
 {{- if eq .Values.roleName "turbo-cluster-admin" }}
 ---
@@ -301,6 +311,24 @@ rules:
       - get
       - list
       - watch
+  {{- if and .Values.featureGates .Values.featureGates.VPASupport }}
+  # VPA spec mutations (controlledValues, recommenders) and discovery; guarded by VPASupport feature gate
+  - apiGroups:
+      - autoscaling.k8s.io
+    resources:
+      - verticalpodautoscalers
+    verbs:
+      - get
+      - list
+      - patch
+  # VPA status write (status.recommendation) — patch on /status subresource
+  - apiGroups:
+      - autoscaling.k8s.io
+    resources:
+      - verticalpodautoscalers/status
+    verbs:
+      - patch
+  {{- end }}
   - apiGroups: [""]
     resources: ["pods/resize"]
     verbs: ["patch"]

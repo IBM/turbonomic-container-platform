@@ -109,6 +109,14 @@ rules:
       - get
       - list
       - watch
+  # VPA discovery (read-only); guarded by VPASupport feature gate
+  - apiGroups:
+      - autoscaling.k8s.io
+    resources:
+      - verticalpodautoscalers
+    verbs:
+      - get
+      - list
   - apiGroups:
       - charts.helm.k8s.io
     resources:

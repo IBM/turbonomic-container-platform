@@ -231,6 +231,14 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["get", "list"]
+  # VPA spec mutations (controlledValues, recommenders) and discovery; guarded by VPASupport feature gate
+  - apiGroups: ["autoscaling.k8s.io"]
+    resources: ["verticalpodautoscalers"]
+    verbs: ["get", "list", "patch"]
+  # VPA status write (status.recommendation)
+  - apiGroups: ["autoscaling.k8s.io"]
+    resources: ["verticalpodautoscalers/status"]
+    verbs: ["patch"]
   - nonResourceURLs:
       - /metrics
     verbs:
@@ -320,7 +328,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.21.2",
+                "version": "8.21.3",
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
@@ -394,7 +402,7 @@ spec:
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.21.2
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.21.3
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
