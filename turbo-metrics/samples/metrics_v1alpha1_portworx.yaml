@@ -32,7 +32,15 @@ spec:
     - type: storageAmount
       queries:
       - type: used
-        promql: last_over_time(px_cluster_status_size[10m])
+        promql: sum(last_over_time(px_pool_stats_used_bytes[10m])) by (clusterUUID, cluster) / 1024 / 1024
+      - type: capacity
+        promql: sum(last_over_time(px_pool_stats_total_bytes[10m])) by (clusterUUID, cluster) / 1024 / 1024
+    - type: storageProvisioned
+      queries:
+      - type: used
+        promql: sum(last_over_time(px_pool_stats_provisioned_bytes[10m])) by (clusterUUID, cluster) / 1024 / 1024
+      - type: capacity
+        promql: sum(last_over_time(px_pool_stats_total_bytes[10m])) by (clusterUUID, cluster) / 1024 / 1024
   - type: virtualVolume
     attributes:
     - name: id
