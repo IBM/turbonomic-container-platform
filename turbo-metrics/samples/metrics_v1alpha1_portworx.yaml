@@ -28,6 +28,8 @@ spec:
       isIdentifier: true
     - name: cluster
       label: cluster
+    - name: portworxVersion
+      label: portworxVersion
     metrics:
     - type: storageAmount
       queries:
@@ -72,6 +74,8 @@ spec:
       label: volumeid
     - name: storageProvider
       label: pool
+    - name: storageClass
+      label: storageclass
     metrics:
     - type: storageAccess
       queries:
@@ -95,13 +99,18 @@ spec:
       label: node
     - name: clusterUUID
       label: clusterUUID
+    - name: disk
+      label: disk
     metrics:
     - type: storageAmount
       queries:
       - type: used
         promql: last_over_time(px_pool_stats_used_bytes[10m]) / 1024 / 1024
       - type: capacity
-        promql: last_over_time(px_pool_stats_total_bytes[10m]) / 1024 / 1024
+        promql: >-
+          last_over_time(px_pool_stats_total_bytes[10m]) / 1024 / 1024
+          * on(clusterUUID, pool) group_right(node)
+            group by (clusterUUID, nodeID, pool, disk) (px_disk_stats_used_bytes)
     - type: storageProvisioned
       queries:
       - type: used
