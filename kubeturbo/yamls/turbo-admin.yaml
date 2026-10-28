@@ -200,7 +200,7 @@ rules:
   # VPA status write (status.recommendation)
   - apiGroups: ["autoscaling.k8s.io"]
     resources: ["verticalpodautoscalers/status"]
-    verbs: ["patch"]
+    verbs: ["get", "patch"]
   - nonResourceURLs:
       - /metrics
     verbs:

@@ -120,6 +120,12 @@ rules:
     verbs:
       - get
       - list
+  - apiGroups:
+      - autoscaling.k8s.io
+    resources:
+      - verticalpodautoscalers/status
+    verbs:
+      - get
   {{- end }}
 {{- end }}
 {{- if eq .Values.roleName "turbo-cluster-admin" }}
@@ -327,6 +333,7 @@ rules:
     resources:
       - verticalpodautoscalers/status
     verbs:
+      - get
       - patch
   {{- end }}
   - apiGroups: [""]

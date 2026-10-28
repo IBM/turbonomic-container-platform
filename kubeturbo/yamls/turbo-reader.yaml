@@ -118,6 +118,12 @@ rules:
       - get
       - list
   - apiGroups:
+      - autoscaling.k8s.io
+    resources:
+      - verticalpodautoscalers/status
+    verbs:
+      - get
+  - apiGroups:
       - charts.helm.k8s.io
     resources:
       - kubeturbos

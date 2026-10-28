@@ -123,6 +123,9 @@ spec:
           {{- if .Values.args.satelliteLocationProvider }}
           - --satellite-location-provider={{ .Values.args.satelliteLocationProvider }}
           {{- end }}
+          {{- if hasKey .Values.args "verifyTurboServerCert" }}
+          - --turbo-server-tls-verify={{ .Values.args.verifyTurboServerCert }}
+          {{- end }}
           securityContext:
             privileged: false
             allowPrivilegeEscalation: false

@@ -7,7 +7,7 @@ replicaCount: 1
 # Replace the image with desired version
 image:
   repository: icr.io/cpopen/turbonomic/kubeturbo
-  tag: 8.21.3
+  tag: 8.21.4
   pullPolicy: IfNotPresent
 #  busyboxRepository: busybox
 #  imagePullSecret: ""
@@ -176,6 +176,8 @@ args:
   skipCreatingSccImpersonationResources: false
   # required for OCP cluster
   # sccsupport: "*"
+  # SECURITY: Set to true to verify Turbo server's TLS certificate (recommended for maximum security)
+  verifyTurboServerCert: false
 
 resources: {}
 

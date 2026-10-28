@@ -190,6 +190,11 @@ spec:
                     description: Use API server node proxy endpoint for kubelet queries
                       instead of direct kubelet connection.
                     type: boolean
+                  verifyTurboServerCert:
+                    default: false
+                    description: If set, verify Turbo server's TLS certificate. Default
+                      false (skip verification).
+                    type: boolean
                 type: object
               daemonPodDetectors:
                 default: {}
@@ -1846,6 +1851,7 @@ rules:
   resources:
   - verticalpodautoscalers/status
   verbs:
+  - get
   - patch
 - nonResourceURLs:
   - /metrics
@@ -1938,7 +1944,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: icr.io/cpopen/kubeturbo-operator:8.21.3
+        image: icr.io/cpopen/kubeturbo-operator:8.21.4
         livenessProbe:
           httpGet:
             path: /healthz

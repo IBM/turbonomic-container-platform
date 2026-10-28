@@ -55,7 +55,7 @@ spec:
         runAsNonRoot: true
       containers:
       - name: kubeturbo
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.21.3
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.21.4
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
@@ -73,6 +73,8 @@ spec:
         - --kubelet-port=10250
         # SECURITY: Set to true to use the node proxy endpoint for kubelet connections (recommended for maximum security)
         - --use-node-proxy-endpoint=false
+        # SECURITY: Uncomment and set to true to verify Turbo server's TLS certificate (recommended for maximum security)
+        #- --turbo-server-tls-verify=true
         # Uncomment for pod moves in OpenShift
         #- --scc-support=*
         # Uncomment for discovery interval in seconds, default value is 600

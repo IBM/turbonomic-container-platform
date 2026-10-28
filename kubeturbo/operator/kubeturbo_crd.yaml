@@ -190,6 +190,11 @@ spec:
                     description: Use API server node proxy endpoint for kubelet queries
                       instead of direct kubelet connection.
                     type: boolean
+                  verifyTurboServerCert:
+                    default: false
+                    description: If set, verify Turbo server's TLS certificate. Default
+                      false (skip verification).
+                    type: boolean
                 type: object
               daemonPodDetectors:
                 default: {}

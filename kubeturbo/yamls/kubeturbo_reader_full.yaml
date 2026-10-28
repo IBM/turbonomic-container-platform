@@ -148,6 +148,12 @@ rules:
       - get
       - list
   - apiGroups:
+      - autoscaling.k8s.io
+    resources:
+      - verticalpodautoscalers/status
+    verbs:
+      - get
+  - apiGroups:
       - charts.helm.k8s.io
     resources:
       - xls
@@ -240,7 +246,7 @@ data:
     {
         "communicationConfig": {
             "serverMeta": {
-                "version": "8.21.3",
+                "version": "8.21.4",
                 "turboServer": "<https://Turbo_Server_URL_or_IP_address>"
             },
             "restAPIConfig": {
@@ -313,7 +319,7 @@ spec:
       containers:
       - name: kubeturbo
         # Replace the image version with matching Turbo Server version such as 8.13.0
-        image: icr.io/cpopen/turbonomic/kubeturbo:8.21.3
+        image: icr.io/cpopen/turbonomic/kubeturbo:8.21.4
         env:
         - name: KUBETURBO_NAMESPACE
           valueFrom:
@@ -331,6 +337,8 @@ spec:
         - --kubelet-port=10250
         # SECURITY: Set to true to use the node proxy endpoint for kubelet connections
         - --use-node-proxy-endpoint=false
+        # SECURITY: Uncomment and set to true to verify Turbo server's TLS certificate (recommended for maximum security)
+        #- --turbo-server-tls-verify=true
         # Uncomment for pod moves in OpenShift
         #- --scc-support=*
         # Uncomment for pod moves with pvs
